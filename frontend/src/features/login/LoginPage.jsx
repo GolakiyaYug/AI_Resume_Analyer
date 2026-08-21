@@ -36,29 +36,23 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center px-4 py-12">
-      {/* Ambient blobs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-600 opacity-20 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-indigo-600 opacity-20 rounded-full blur-3xl" />
-      </div>
-
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12 font-sans">
       <div className="relative w-full max-w-md">
         {/* Card */}
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl">
+        <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-xl">
           {/* Logo */}
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex flex-col items-center">
-              <span className="text-3xl font-black text-white tracking-tight">Resume<span className="text-blue-400">Craft</span></span>
-              <span className="text-xs text-blue-300 mt-1 tracking-widest uppercase">Professional Resume Builder</span>
+              <span className="text-3xl font-black text-gray-900 tracking-tight">Resume<span className="text-blue-600">Craft</span></span>
+              <span className="text-xs text-gray-500 mt-1 tracking-widest uppercase font-semibold">Professional Resume Builder</span>
             </Link>
-            <h1 className="text-2xl font-bold text-white mt-6">Welcome back!</h1>
-            <p className="text-blue-200 text-sm mt-1">Sign in to continue building your career</p>
+            <h1 className="text-2xl font-bold text-gray-900 mt-6">Welcome back!</h1>
+            <p className="text-gray-500 text-sm mt-1">Sign in to continue building your career</p>
           </div>
 
           {/* Error */}
           {error && (
-            <div className="mb-5 px-4 py-3 rounded-xl bg-red-500/20 border border-red-400/30 text-red-300 text-sm flex items-center gap-2">
+            <div className="mb-5 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
               <span>⚠️</span> {error}
             </div>
           )}
@@ -66,7 +60,7 @@ const LoginPage = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-blue-200 text-sm font-medium mb-2">Username or Email</label>
+              <label className="block text-gray-700 text-sm font-medium mb-1.5">Username or Email</label>
               <input
                 id="login-identifier"
                 name="identifier"
@@ -75,12 +69,12 @@ const LoginPage = () => {
                 value={form.identifier}
                 onChange={handleChange}
                 placeholder="Enter your username or email"
-                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-blue-300/50 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/30 transition-all"
+                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-blue-200 text-sm font-medium mb-2">Password</label>
+              <label className="block text-gray-700 text-sm font-medium mb-1.5">Password</label>
               <div className="relative">
                 <input
                   id="login-password"
@@ -90,12 +84,12 @@ const LoginPage = () => {
                   value={form.password}
                   onChange={handleChange}
                   placeholder="Enter your password"
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 pr-12 text-white placeholder-blue-300/50 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/30 transition-all"
+                  className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2.5 pr-12 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-300 hover:text-white transition-colors text-lg"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors text-lg"
                   tabIndex={-1}
                 >
                   {showPassword ? '🙈' : '👁️'}
@@ -107,28 +101,28 @@ const LoginPage = () => {
               id="login-submit"
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   Signing in...
                 </span>
-              ) : 'Sign In →'}
+              ) : 'Sign In'}
             </button>
           </form>
 
           {/* Divider */}
           <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px bg-white/10" />
-            <span className="text-blue-300/60 text-xs">OR</span>
-            <div className="flex-1 h-px bg-white/10" />
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-gray-400 text-xs font-semibold">OR</span>
+            <div className="flex-1 h-px bg-gray-200" />
           </div>
 
           {/* Sign up link */}
-          <p className="text-center text-blue-200 text-sm">
+          <p className="text-center text-gray-600 text-sm">
             Don't have an account?{' '}
-            <Link to="/signup" className="text-blue-400 hover:text-white font-semibold transition-colors underline underline-offset-2">
+            <Link to="/signup" className="text-blue-600 hover:text-blue-800 font-semibold transition-colors">
               Create one free
             </Link>
           </p>
