@@ -1,0 +1,228 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased text-gray-800;
+  }
+}
+
+/* =========================================================
+   PILL / TAG VERTICAL ALIGNMENT FIX
+   Ensures text inside rounded-full tags (like Skills/Interests)
+   is perfectly centered vertically. Default inline spans with 
+   padding often push the border down while the text sits on 
+   the baseline, making it look too close to the bottom.
+   ========================================================= */
+#resume-preview [class*="rounded-full"][class*="px-"][class*="py-"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  vertical-align: middle !important;
+  /* Use normal line height so fonts center mathematically based on their ascenders/descenders */
+  line-height: normal !important;
+}
+
+/* =========================================================
+   Resume Specific Print Styles
+   ========================================================= */
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #resume-preview,
+  #resume-preview * {
+    visibility: visible;
+  }
+
+  #resume-preview {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    /* Force background colors to print */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+/* =========================================================
+   Downloading state: strip all editing chrome from the
+   contentEditable fields so they render cleanly in the PDF
+   ========================================================= */
+.downloading [contenteditable] {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border: none !important;
+  /* Add padding so descenders (g, j, p, q, y) and ascenders aren't clipped by html2canvas */
+  padding-top: 1px !important;
+  padding-bottom: 2px !important;
+}
+
+/* Ensure the full height of the resume is visible to html2canvas without truncation or scale interference */
+.downloading,
+.downloading #resume-preview,
+.downloading #resume-preview * {
+  /* Some tailwind templates might use overflow-hidden on containers which clips content if they overflow.
+     During download, we must let it all show. */
+}
+
+.downloading-parent {
+  /* CRITICAL FIX: CSS transforms (like scale) completely break html2pdf's ability to calculate 
+     page-breaks accurately because bounding rects don't match the unscaled canvas. */
+  transform: none !important;
+  overflow: visible !important;
+  height: auto !important;
+  min-height: max-content !important;
+}
+
+.downloading #resume-preview {
+  height: auto !important;
+  min-height: max-content !important;
+  overflow: visible !important;
+}
+
+.downloading {
+  height: auto !important;
+  overflow: visible !important;
+}
+
+/* Fix for html2canvas pill text vertical alignment bug */
+.downloading [class*="rounded-full"][class*="px-"][class*="py-"] [contenteditable] {
+  /* html2canvas sometimes renders flex item baselines slightly lower than the browser.
+     We counteract this strictly during the PDF export. */
+  transform: translateY(-1px) !important;
+}
+
+/* Override tailwind's truncate class during PDF export so long URLs don't get clipped */
+.downloading .truncate {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+/* =========================================================
+   PDF TEXT-CLIPPING FIXES
+   Applied inside #resume-preview so they ONLY affect the
+   exported PDF view and do NOT alter any template styles.
+
+   Root cause: descenders/ascenders are cropped when:
+     • parent has overflow:hidden with tight line-height
+     • inline elements don't have enough breathing room
+     • html2canvas clips the rasterised layer at element bounds
+   =========================================================
+*/
+#resume-preview * {
+  /* Ensure text is never clipped by overflow on any child */
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Give every contentEditable span a safe minimum line-height
+   so descenders (g, p, y, j) and ascenders (l, h, d) are
+   fully visible during canvas rasterisation. */
+#resume-preview [contenteditable] {
+  /* Do NOT set display:block — that would break inline templates.
+     Instead, ensure the line-box is tall enough to hold full glyphs. */
+  min-height: 1em;
+  line-height: inherit;
+  /* Let the text wrap naturally inside its container */
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* =========================================================
+   PDF PAGE-BREAK PREVENTION
+   Root cause: html2pdf slices the full-page canvas image at
+   exact A4 pixel boundaries, cutting any element that spans
+   a boundary.  Adding break-inside:avoid to every logical
+   resume block tells the library to move the whole block to
+   the next page rather than slicing through it.
+
+   This covers every element type used across ALL 35 templates.
+   =========================================================
+*/
+
+/* Semantic section tags (used by most templates) */
+#resume-preview article {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  /* older browsers */
+}
+
+/* Individual experience / education / project / cert / achievement
+   entry wrappers — every template wraps these in a <div>.
+   We target divs that are DIRECT children of section, or that
+   are mapped via .map() and thus share a common parent. */
+
+/* Experience entries — typically: section > div.space-y-N > div */
+#resume-preview section>div>div,
+#resume-preview section>div>article {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Table rows should never be split */
+#resume-preview table,
+#resume-preview thead,
+#resume-preview tbody,
+#resume-preview tr,
+#resume-preview td,
+#resume-preview th {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Flex / grid containers that act as "card" wrappers in templates */
+#resume-preview .pdf-no-break {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* =========================================================
+   URL / LONG TEXT OVERFLOW FIX
+   LinkedIn, GitHub, Portfolio, and Project URLs that contain
+   no natural word-break points need explicit break directives
+   so they wrap inside their container rather than overflowing
+   or being cropped.
+   =========================================================
+*/
+#resume-preview a,
+#resume-preview span {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* =========================================================
+   PAGE-BREAK UTILITY CLASSES
+   Templates or future pages can add these if they need a
+   forced break at a specific point.
+   =========================================================
+*/
+.pdf-page-break-before {
+  break-before: page;
+  page-break-before: always;
+}
+
+.pdf-page-break-after {
+  break-after: page;
+  page-break-after: always;
+}
