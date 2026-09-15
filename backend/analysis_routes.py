@@ -14,11 +14,12 @@ from models import Analysis
 analysis_bp = Blueprint("analysis", __name__)
 
 SECTION_PATTERNS = {
-    "summary": r"\b(summary|profile|objective)\b",
-    "experience": r"\b(experience|employment|work history)\b",
-    "education": r"\b(education|academic)\b",
-    "skills": r"\b(skills|technologies|technical skills)\b",
-    "projects": r"\b(projects|portfolio)\b",
+    "summary": r"\b(summary|profile|objective|about me|professional summary|executive summary)\b",
+    "experience": r"\b(experience|employment|work history|professional experience|professional background|career history|work experience)\b",
+    "education": r"\b(education|academic|academic background|qualifications|academic history|academics)\b",
+    "skills": r"\b(skills|technologies|technical skills|core competencies|expertise|proficiencies|tools)\b",
+    "projects": r"\b(projects|portfolio|personal projects|academic projects|technical projects|key projects)\b",
+    "certifications": r"\b(certifications|certificates|awards|achievements|licenses|credentials)\b",
 }
 ACTION_WORDS = {
     "built", "created", "designed", "developed", "implemented", "improved",
@@ -144,6 +145,22 @@ def _analyze_resume(text, job_description=""):
         "Readable length": 20,
     }
     score = round(sum(weights[name] for name, passed in checks.items() if passed))
+    
+    score_breakdown = []
+    categories = {
+        "Section Completeness": ["Contact details", "Clear section headings", "Relevant skills"],
+        "Formatting & Impact": ["Quantified achievements", "Action-oriented writing", "Readable length"]
+    }
+    
+    for cat_name, check_keys in categories.items():
+        cat_score = sum(weights[name] for name in check_keys if checks[name])
+        cat_max = sum(weights[name] for name in check_keys)
+        cat_pct = round((cat_score / cat_max) * 100)
+        score_breakdown.append({
+            "category": cat_name,
+            "score": cat_pct,
+            "feedback": "Excellent structure." if cat_pct == 100 else "Some critical elements are missing."
+        })
     failed_checks = [name for name, passed in checks.items() if not passed]
     improvement_suggestions = []
     if not checks["Contact details"]:
@@ -203,12 +220,75 @@ def _analyze_resume(text, job_description=""):
         f"Detected {len(words)} words, {len(sections)} standard sections, and "
         f"{len(found_skills)} common skills."
     )
+    
+    missing_keywords = []
+    if job_description:
+        try:
+            from sklearn.feature_extraction.text import TfidfVectorizer
+            jd_clean = re.sub(r"[^\w\s]", " ", job_description).lower()
+            res_clean = re.sub(r"[^\w\s]", " ", text).lower()
+            
+            # Extract top keywords using TF-IDF
+            vectorizer = TfidfVectorizer(stop_words='english', max_features=20, ngram_range=(1, 2))
+            vectorizer.fit([jd_clean])
+            jd_keywords = vectorizer.get_feature_names_out().tolist()
+            
+            # Find which keywords are missing from the resume
+            for kw in jd_keywords:
+                if kw not in res_clean:
+                    missing_keywords.append(kw)
+                    
+            if jd_keywords:
+                found_jd = len(jd_keywords) - len(missing_keywords)
+                kw_score = round((found_jd / len(jd_keywords)) * 100)
+                score_breakdown.append({
+                    "category": "Keyword Match",
+                    "score": kw_score,
+                    "feedback": f"You matched {found_jd} out of {len(jd_keywords)} top keywords from the JD."
+                })
+                # Blend the keyword match into the overall score
+                score = round((score * 0.7) + (kw_score * 0.3))
+        except Exception:
+            pass
+
+    section_breakdown = []
+    for section_name, pattern in SECTION_PATTERNS.items():
+        is_present = bool(re.search(pattern, lower))
+        
+        if not is_present:
+            if section_name == "certifications":
+                feedback = "Optional: Add Certifications/Awards if applicable."
+            else:
+                feedback = f"Missing {section_name.title()} section."
+        else:
+            feedback = f"{section_name.title()} section found."
+            if section_name == "experience":
+                has_metrics = bool(re.search(r"\b\d+([,.]\d+)?\s*%?|\$\s*\d+", lower))
+                if has_metrics:
+                    feedback = "Experience section includes quantified metrics."
+                else:
+                    feedback = "Consider adding numbers/metrics to your experience."
+            elif section_name == "skills":
+                if len(found_skills) >= 5:
+                    feedback = "Strong list of technical skills detected."
+                else:
+                    feedback = "Consider expanding your skills section."
+
+        section_breakdown.append({
+            "name": section_name.title(),
+            "present": is_present,
+            "feedback": feedback
+        })
+
     return {
         "overall_score": score,
         "ats_score": score,
+        "score_breakdown": score_breakdown,
         "overview": overview,
         "sections_found": sections,
+        "section_breakdown": section_breakdown,
         "skills_found": found_skills,
+        "missing_keywords": missing_keywords,
         "suggestions": improvement_suggestions,
         "overview_points": overview_points,
         "improvement_suggestions": improvement_suggestions,
