@@ -51,12 +51,12 @@ def create_app():
         "JWT_SECRET_KEY", "dev-jwt-secret-change-in-production"
     )
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=7)
-    app.config["SMTP_HOST"] = os.getenv("SMTP_HOST", "")
-    app.config["SMTP_PORT"] = int(os.getenv("SMTP_PORT", "587"))
-    app.config["SMTP_USERNAME"] = os.getenv("SMTP_USERNAME", "")
-    app.config["SMTP_PASSWORD"] = os.getenv("SMTP_PASSWORD", "")
-    app.config["SMTP_FROM"] = os.getenv("SMTP_FROM", "")
-    app.config["SMTP_USE_TLS"] = os.getenv("SMTP_USE_TLS", "starttls").lower()
+    app.config["SMTP_HOST"] = os.getenv("MAIL_SERVER", os.getenv("SMTP_HOST", "smtp.gmail.com"))
+    app.config["SMTP_PORT"] = int(os.getenv("MAIL_PORT", os.getenv("SMTP_PORT", "587")))
+    app.config["SMTP_USERNAME"] = os.getenv("MAIL_USERNAME", os.getenv("SMTP_USERNAME", ""))
+    app.config["SMTP_PASSWORD"] = os.getenv("MAIL_PASSWORD", os.getenv("SMTP_PASSWORD", ""))
+    app.config["SMTP_FROM"] = os.getenv("MAIL_FROM", os.getenv("SMTP_FROM", os.getenv("MAIL_USERNAME", "")))
+    app.config["SMTP_USE_TLS"] = os.getenv("MAIL_USE_TLS", os.getenv("SMTP_USE_TLS", "starttls")).lower()
 
     # Initialize extensions
     db.init_app(app)

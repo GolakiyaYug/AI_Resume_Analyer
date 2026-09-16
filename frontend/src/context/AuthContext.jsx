@@ -6,9 +6,8 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(true); // bootstrapping from localStorage
+  const [loading, setLoading] = useState(true);
 
-  // ── Bootstrap from localStorage on mount ──────────────────────────────────
   useEffect(() => {
     const savedToken = localStorage.getItem('rc_token');
     const savedUser  = localStorage.getItem('rc_user');
@@ -24,23 +23,35 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // ── Signup ─────────────────────────────────────────────────────────────────
-  const signup = async ({ name, username, email, password }) => {
-    const res = await api.post('/api/auth/signup', { name, username, email, password });
+  const signupInit = async (data) => {
+    const res = await api.post('/api/auth/signup-init', data);
+    return res.data;
+  };
+
+  const signupVerify = async (email, code) => {
+    const res = await api.post('/api/auth/signup-verify', { email, code });
     const { access_token, user: userData } = res.data;
     _persist(access_token, userData);
     return res.data;
   };
 
-  // ── Login ──────────────────────────────────────────────────────────────────
-  const login = async ({ identifier, password }) => {
-    const res = await api.post('/api/auth/login', { identifier, password });
+  const loginInit = async (data) => {
+    const res = await api.post('/api/auth/login-init', data);
+    return res.data;
+  };
+
+  const loginVerify = async (username, email, code) => {
+    const res = await api.post('/api/auth/login-verify', { username, email, code });
     const { access_token, user: userData } = res.data;
     _persist(access_token, userData);
     return res.data;
   };
 
-  // ── Logout ─────────────────────────────────────────────────────────────────
+  const resendOtp = async (email) => {
+    const res = await api.post('/api/auth/resend-otp', { email });
+    return res.data;
+  };
+
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -48,7 +59,6 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('rc_user');
   };
 
-  // ── Internal helper ────────────────────────────────────────────────────────
   const _persist = (access_token, userData) => {
     setToken(access_token);
     setUser(userData);
@@ -57,7 +67,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, signup, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ 
+      user, token, loading, 
+      signupInit, signupVerify, loginInit, loginVerify, resendOtp, 
+      logout, isAuthenticated: !!user 
+    }}>
       {children}
     </AuthContext.Provider>
   );

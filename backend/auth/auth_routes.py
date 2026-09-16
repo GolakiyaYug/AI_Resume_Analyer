@@ -15,24 +15,31 @@ from email_service import (
 )
 
 auth_bp = Blueprint("auth", __name__)
-
 EMAIL_REGEX = r"^[\w\.-]+@[\w\.-]+\.\w+$"
 
+def _send_verification_code(user):
+    if not can_send_code(user.verification_sent_at):
+        return "Please wait before requesting another code."
+    code = generate_code()
+    user.verification_code_hash = hash_code(code)
+    user.verification_expires_at = code_expiry()
+    user.verification_attempts = 0
+    user.verification_sent_at = datetime.utcnow()
+    send_code_email(user.email, code, "verification")
+    db.session.commit()
+    return None
 
-@auth_bp.route("/signup", methods=["POST"])
-def signup():
-    """Register a new user account."""
+@auth_bp.route("/signup-init", methods=["POST"])
+def signup_init():
+    """Step 1: Validate details and send OTP for registration."""
     data = request.get_json(silent=True) or {}
+    name = data.get("name", "").strip()
+    username = data.get("username", "").strip().lower()
+    email = data.get("email", "").strip().lower()
+    password = data.get("password", "")
 
-    required = ["name", "username", "email", "password"]
-    for field in required:
-        if not data.get(field) or not str(data.get(field)).strip():
-            return jsonify({"message": f"Field '{field}' is required"}), 400
-
-    name = data["name"].strip()
-    username = data["username"].strip().lower()
-    email = data["email"].strip().lower()
-    password = data["password"]
+    if not all([name, username, email, password]):
+        return jsonify({"message": "All fields are required"}), 400
 
     if not re.match(EMAIL_REGEX, email):
         return jsonify({"message": "Please provide a valid email address"}), 400
@@ -43,107 +50,156 @@ def signup():
     if len(password) < 6:
         return jsonify({"message": "Password must be at least 6 characters long"}), 400
 
-    if User.query.filter_by(email=email).first():
-        return jsonify({"message": "An account with this email already exists"}), 409
+    # Check if a VERIFIED user exists with this email
+    existing_email = User.query.filter_by(email=email).first()
+    if existing_email:
+        if existing_email.email_verified:
+            return jsonify({"message": "An account with this email already exists"}), 409
+        else:
+            db.session.delete(existing_email)
+            db.session.commit()
 
-    if User.query.filter_by(username=username).first():
-        return jsonify({"message": "Username is already taken"}), 409
+    # Check if a VERIFIED user exists with this username
+    existing_username = User.query.filter_by(username=username).first()
+    if existing_username:
+        if existing_username.email_verified:
+            return jsonify({"message": "Username is already taken"}), 409
+        else:
+            db.session.delete(existing_username)
+            db.session.commit()
 
     hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
     new_user = User(
         name=name,
         username=username,
         email=email,
-        password=hashed_pw
+        password=hashed_pw,
+        email_verified=False
     )
-
-    new_user.email_verified = True
     db.session.add(new_user)
     db.session.commit()
 
-    return jsonify({
-        "message": "Account created successfully",
-        "access_token": create_access_token(identity=str(new_user.id)),
-        "user": new_user.to_dict(),
-    }), 201
+    try:
+        error = _send_verification_code(new_user)
+        if error:
+            return jsonify({"message": error}), 429
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"message": f"Failed to send email: {str(exc)}"}), 503
+
+    return jsonify({"message": "OTP sent successfully"}), 200
 
 
-@auth_bp.route("/login", methods=["POST"])
-def login():
-    """Authenticate existing user and issue JWT."""
+@auth_bp.route("/signup-verify", methods=["POST"])
+def signup_verify():
+    """Step 2: Verify OTP to complete registration."""
     data = request.get_json(silent=True) or {}
+    email = data.get("email", "").strip().lower()
+    code = data.get("code", "").strip()
 
-    identifier = str(data.get("identifier", "")).strip().lower()
-    password = str(data.get("password", ""))
-
-    if not identifier or not password:
-        return jsonify({"message": "Username/email and password are required"}), 400
-
-    user = User.query.filter(
-        (User.username == identifier) | (User.email == identifier)
-    ).first()
-
-    if not user or not bcrypt.check_password_hash(user.password, password):
-        return jsonify({"message": "Invalid username/email or password"}), 401
-    access_token = create_access_token(identity=str(user.id))
-
-    return jsonify({
-        "message": f"Welcome back, {user.name}",
-        "access_token": access_token,
-        "user": user.to_dict()
-    }), 200
-
-
-def _send_verification_code(user):
-    if not can_send_code(user.verification_sent_at):
-        return "Please wait before requesting another verification code."
-    code = generate_code()
-    user.verification_code_hash = hash_code(code)
-    user.verification_expires_at = code_expiry()
-    user.verification_attempts = 0
-    user.verification_sent_at = datetime.utcnow()
-    send_code_email(user.email, code, "verification")
-    db.session.commit()
-    return None
-
-
-@auth_bp.route("/verify-email", methods=["POST"])
-def verify_email():
-    data = request.get_json(silent=True) or {}
-    email = str(data.get("email", "")).strip().lower()
-    code = str(data.get("code", "")).strip()
     user = User.query.filter_by(email=email).first()
     if not user or user.email_verified:
-        return jsonify({"message": "Invalid or expired verification code"}), 400
+        return jsonify({"message": "Invalid verification attempt"}), 400
+
     if user.verification_attempts >= MAX_CODE_ATTEMPTS:
-        return jsonify({"message": "Too many attempts. Request a new verification code."}), 429
+        return jsonify({"message": "Too many attempts. Request a new OTP."}), 429
+
     if not user.verification_expires_at or user.verification_expires_at < datetime.utcnow() or user.verification_code_hash != hash_code(code):
         user.verification_attempts += 1
         db.session.commit()
-        return jsonify({"message": "Invalid or expired verification code"}), 400
+        return jsonify({"message": "Invalid or expired OTP"}), 400
+
     user.email_verified = True
     user.verification_code_hash = None
     user.verification_expires_at = None
     user.verification_attempts = 0
     db.session.commit()
-    return jsonify({"message": "Email verified successfully. You can now sign in."}), 200
+
+    return jsonify({
+        "message": "Account created successfully",
+        "access_token": create_access_token(identity=str(user.id)),
+        "user": user.to_dict()
+    }), 200
 
 
-@auth_bp.route("/resend-verification", methods=["POST"])
-def resend_verification():
+@auth_bp.route("/login-init", methods=["POST"])
+def login_init():
+    """Step 1: Validate 3-field strict matching and send OTP."""
     data = request.get_json(silent=True) or {}
-    email = str(data.get("email", "")).strip().lower()
-    user = User.query.filter_by(email=email).first()
-    if not user or user.email_verified:
-        return jsonify({"message": "If the account exists and needs verification, a code will be sent."}), 200
+    username = data.get("username", "").strip().lower()
+    email = data.get("email", "").strip().lower()
+    password = data.get("password", "")
+
+    if not all([username, email, password]):
+        return jsonify({"message": "Invalid credentials"}), 401
+
+    user = User.query.filter_by(username=username, email=email, email_verified=True).first()
+    if not user or not bcrypt.check_password_hash(user.password, password):
+        return jsonify({"message": "Invalid credentials"}), 401
+
     try:
         error = _send_verification_code(user)
-    except (OSError, RuntimeError, smtplib.SMTPException) as exc:
+        if error:
+            return jsonify({"message": error}), 429
+    except Exception as exc:
         db.session.rollback()
-        return jsonify({"message": str(exc)}), 503
-    if error:
-        return jsonify({"message": error}), 429
-    return jsonify({"message": "A new verification code has been sent."}), 200
+        return jsonify({"message": f"Failed to send email: {str(exc)}"}), 503
+
+    return jsonify({"message": "OTP sent successfully"}), 200
+
+
+@auth_bp.route("/login-verify", methods=["POST"])
+def login_verify():
+    """Step 2: Verify OTP to finalize login."""
+    data = request.get_json(silent=True) or {}
+    username = data.get("username", "").strip().lower()
+    email = data.get("email", "").strip().lower()
+    code = data.get("code", "").strip()
+
+    user = User.query.filter_by(username=username, email=email, email_verified=True).first()
+    if not user:
+        return jsonify({"message": "Invalid verification attempt"}), 400
+
+    if user.verification_attempts >= MAX_CODE_ATTEMPTS:
+        return jsonify({"message": "Too many attempts. Request a new OTP."}), 429
+
+    if not user.verification_expires_at or user.verification_expires_at < datetime.utcnow() or user.verification_code_hash != hash_code(code):
+        user.verification_attempts += 1
+        db.session.commit()
+        return jsonify({"message": "Invalid or expired OTP"}), 400
+
+    user.verification_code_hash = None
+    user.verification_expires_at = None
+    user.verification_attempts = 0
+    db.session.commit()
+
+    return jsonify({
+        "message": f"Welcome back, {user.name}",
+        "access_token": create_access_token(identity=str(user.id)),
+        "user": user.to_dict()
+    }), 200
+
+
+@auth_bp.route("/resend-otp", methods=["POST"])
+def resend_otp():
+    """Resend OTP for either signup or login flow."""
+    data = request.get_json(silent=True) or {}
+    email = data.get("email", "").strip().lower()
+    user = User.query.filter_by(email=email).first()
+
+    if not user:
+        # Prevent enumeration
+        return jsonify({"message": "If the account exists, an OTP will be sent."}), 200
+
+    try:
+        error = _send_verification_code(user)
+        if error:
+            return jsonify({"message": error}), 429
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"message": f"Failed to send email: {str(exc)}"}), 503
+
+    return jsonify({"message": "OTP resent successfully"}), 200
 
 
 @auth_bp.route("/forgot-password", methods=["POST"])
