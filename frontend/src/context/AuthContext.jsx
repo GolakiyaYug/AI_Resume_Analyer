@@ -52,6 +52,22 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
+  const profileEditInit = async (data) => {
+    const res = await api.post('/api/auth/profile-edit-init', data);
+    if (!res.data.otp_required) {
+      setUser(res.data.user);
+      localStorage.setItem('rc_user', JSON.stringify(res.data.user));
+    }
+    return res.data;
+  };
+
+  const profileEditVerify = async (code) => {
+    const res = await api.post('/api/auth/profile-edit-verify', { code });
+    const { access_token, user: userData } = res.data;
+    _persist(access_token, userData);
+    return res.data;
+  };
+
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -70,6 +86,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{ 
       user, token, loading, 
       signupInit, signupVerify, loginInit, loginVerify, resendOtp, 
+      profileEditInit, profileEditVerify,
       logout, isAuthenticated: !!user 
     }}>
       {children}

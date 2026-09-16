@@ -65,25 +65,14 @@ const Navbar = () => {
 
             {isAuthenticated ? (
               <>
-                <Link
-                  to="/my-resumes"
-                  className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all"
-                >
-                  📁 My Resumes
-                </Link>
-
                 {/* User Avatar Dropdown */}
                 <div className="relative" ref={dropdownRef}>
                   <button
                     id="user-menu-btn"
                     onClick={() => setDropdownOpen(!dropdownOpen)}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-full text-sm font-medium transition-all shadow-md hover:shadow-lg"
+                    className="w-9 h-9 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center text-sm font-bold transition-all shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-600/30"
                   >
-                    <span className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold">
-                      {initials}
-                    </span>
-                    <span className="hidden sm:inline max-w-[100px] truncate">{user?.username}</span>
-                    <span className="text-xs">{dropdownOpen ? '▲' : '▼'}</span>
+                    {initials}
                   </button>
 
                   {/* Dropdown menu */}
@@ -94,6 +83,13 @@ const Navbar = () => {
                         <p className="text-xs text-gray-500 truncate">@{user?.username}</p>
                         <p className="text-xs text-gray-400 truncate">{user?.email}</p>
                       </div>
+                      <Link
+                        to="/profile"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                      >
+                        👤 Profile
+                      </Link>
                       <Link
                         to="/my-resumes"
                         onClick={() => setDropdownOpen(false)}

@@ -9,6 +9,7 @@ import SignupPage from './features/signup/SignupPage';
 import MyResumesPage from './features/resume/MyResumesPage';
 import AnalyzePage from './features/analysis/AnalyzePage';
 import ForgotPasswordPage from './features/auth/ForgotPasswordPage';
+import ProfilePage from './features/profile/ProfilePage';
 
 function App() {
   return (
@@ -46,6 +47,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <MyResumesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <ProfilePage />
                   </ProtectedRoute>
                 }
               />

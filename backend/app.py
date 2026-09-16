@@ -86,6 +86,10 @@ def create_app():
             "reset_expires_at": "DATETIME",
             "reset_attempts": "INTEGER NOT NULL DEFAULT 0",
             "reset_sent_at": "DATETIME",
+            "pending_name": "VARCHAR(100)",
+            "pending_username": "VARCHAR(80)",
+            "pending_email": "VARCHAR(120)",
+            "pending_password_hash": "VARCHAR(200)",
         }
         with db.engine.begin() as connection:
             for column, definition in migrations.items():

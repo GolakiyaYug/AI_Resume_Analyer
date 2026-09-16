@@ -21,6 +21,10 @@ class User(db.Model):
     reset_expires_at = db.Column(db.DateTime)
     reset_attempts = db.Column(db.Integer, default=0, nullable=False)
     reset_sent_at = db.Column(db.DateTime)
+    pending_name = db.Column(db.String(100))
+    pending_username = db.Column(db.String(80))
+    pending_email = db.Column(db.String(120))
+    pending_password_hash = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     resumes = db.relationship("Resume", backref="owner", lazy=True, cascade="all, delete-orphan")

@@ -255,3 +255,125 @@ def get_current_user():
         return jsonify({"message": "User not found"}), 404
 
     return jsonify({"user": user.to_dict()}), 200
+
+
+@auth_bp.route("/profile-edit-init", methods=["POST"])
+@jwt_required()
+def profile_edit_init():
+    current_user_id = int(get_jwt_identity())
+    user = db.session.get(User, current_user_id)
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    name = data.get("name", "").strip()
+    username = data.get("username", "").strip().lower()
+    email = data.get("email", "").strip().lower()
+    password = data.get("password", "")
+
+    if not all([name, username, email]):
+        return jsonify({"message": "Name, username, and email are required"}), 400
+
+    if not re.match(EMAIL_REGEX, email):
+        return jsonify({"message": "Please provide a valid email address"}), 400
+
+    if len(username) < 3:
+        return jsonify({"message": "Username must be at least 3 characters long"}), 400
+
+    if email != user.email:
+        existing_email = User.query.filter(User.email == email, User.id != user.id, User.email_verified == True).first()
+        if existing_email:
+            return jsonify({"message": "An account with this email already exists"}), 409
+
+    if username != user.username:
+        existing_username = User.query.filter(User.username == username, User.id != user.id, User.email_verified == True).first()
+        if existing_username:
+            return jsonify({"message": "Username is already taken"}), 409
+
+    email_changed = (email != user.email)
+    password_changed = bool(password)
+
+    user.pending_name = name
+    user.pending_username = username
+    user.pending_email = email
+    if password_changed:
+        if len(password) < 6:
+            return jsonify({"message": "Password must be at least 6 characters long"}), 400
+        user.pending_password_hash = bcrypt.generate_password_hash(password).decode("utf-8")
+    else:
+        user.pending_password_hash = None
+
+    if email_changed or password_changed:
+        try:
+            code = generate_code()
+            user.verification_code_hash = hash_code(code)
+            user.verification_expires_at = code_expiry()
+            user.verification_attempts = 0
+            user.verification_sent_at = datetime.utcnow()
+            target_email = email if email_changed else user.email
+            send_code_email(target_email, code, "verification")
+            db.session.commit()
+            return jsonify({"message": "OTP sent to verify changes", "otp_required": True}), 200
+        except Exception as exc:
+            db.session.rollback()
+            return jsonify({"message": f"Failed to send email: {str(exc)}"}), 503
+    else:
+        user.name = name
+        user.username = username
+        user.pending_name = None
+        user.pending_username = None
+        user.pending_email = None
+        db.session.commit()
+        return jsonify({
+            "message": "Profile updated successfully", 
+            "otp_required": False,
+            "user": user.to_dict()
+        }), 200
+
+
+@auth_bp.route("/profile-edit-verify", methods=["POST"])
+@jwt_required()
+def profile_edit_verify():
+    current_user_id = int(get_jwt_identity())
+    user = db.session.get(User, current_user_id)
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    code = data.get("code", "").strip()
+
+    if not code:
+        return jsonify({"message": "Code is required"}), 400
+
+    if user.verification_attempts >= MAX_CODE_ATTEMPTS:
+        return jsonify({"message": "Too many attempts. Request a new OTP."}), 429
+
+    if not user.verification_expires_at or user.verification_expires_at < datetime.utcnow() or user.verification_code_hash != hash_code(code):
+        user.verification_attempts += 1
+        db.session.commit()
+        return jsonify({"message": "Invalid or expired OTP"}), 400
+
+    if user.pending_name:
+        user.name = user.pending_name
+    if user.pending_username:
+        user.username = user.pending_username
+    if user.pending_email:
+        user.email = user.pending_email
+    if user.pending_password_hash:
+        user.password = user.pending_password_hash
+
+    user.pending_name = None
+    user.pending_username = None
+    user.pending_email = None
+    user.pending_password_hash = None
+    user.verification_code_hash = None
+    user.verification_expires_at = None
+    user.verification_attempts = 0
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Profile updated securely",
+        "user": user.to_dict(),
+        "access_token": create_access_token(identity=str(user.id))
+    }), 200
