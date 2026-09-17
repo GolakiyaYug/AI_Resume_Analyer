@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { FiBold, FiItalic, FiUnderline, FiAlignLeft, FiAlignCenter, FiAlignRight, FiList, FiChevronDown, FiType, FiEdit2 } from 'react-icons/fi';
+import { FiBold, FiItalic, FiUnderline, FiAlignLeft, FiAlignCenter, FiAlignRight, FiList, FiChevronDown, FiType, FiEdit2, FiDroplet } from 'react-icons/fi';
 
 const COLORS = [
   '#000000', '#434343', '#666666', '#999999', '#B7B7B7', '#CCCCCC', '#D9D9D9', '#EFEFEF', '#F3F3F3', '#FFFFFF',
@@ -42,6 +42,8 @@ const CustomEditorPage = () => {
   const [isFontColorDropdownOpen, setIsFontColorDropdownOpen] = useState(false);
   const [activeHighlightColor, setActiveHighlightColor] = useState('transparent');
   const [isHighlightColorDropdownOpen, setIsHighlightColorDropdownOpen] = useState(false);
+  const [activeShadingColor, setActiveShadingColor] = useState('transparent');
+  const [isShadingDropdownOpen, setIsShadingDropdownOpen] = useState(false);
 
   const [isHeaderActive, setIsHeaderActive] = useState(false);
   const [isFooterActive, setIsFooterActive] = useState(false);
@@ -72,9 +74,15 @@ const CustomEditorPage = () => {
         let currentNode = container;
         let styledParent = null;
 
-        // Traverse up to find the highest active formatting span/font tag
+        const blockTags = ['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'TD', 'TH'];
+
+        // Traverse up to find the highest active inline formatting span/font tag
         while (currentNode && currentNode !== editorRef.current && currentNode !== headerRef.current && currentNode !== footerRef.current) {
           if (currentNode.nodeType === 1) {
+            // Immediately stop at structural block containers so block background (line shading) is not treated as an inline span
+            if (blockTags.includes(currentNode.nodeName)) {
+              break;
+            }
             const hasColor = currentNode.style && (currentNode.style.color || currentNode.style.backgroundColor);
             const isFontTag = currentNode.nodeName === 'FONT';
             if (hasColor || isFontTag) {
@@ -160,6 +168,24 @@ const CustomEditorPage = () => {
     
     let backColor = document.queryCommandValue('backColor') || document.queryCommandValue('hiliteColor');
     if (backColor) setActiveHighlightColor(backColor);
+    
+    let node = window.getSelection().anchorNode;
+    let activeEditor = null;
+    if (isHeaderActive && headerRef.current) activeEditor = headerRef.current;
+    else if (isFooterActive && footerRef.current) activeEditor = footerRef.current;
+    else if (editorRef.current) activeEditor = editorRef.current;
+
+    if (node && activeEditor) {
+      let blockNode = node;
+      while (blockNode && blockNode !== activeEditor && !['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI'].includes(blockNode.nodeName)) {
+        blockNode = blockNode.parentNode;
+      }
+      if (blockNode && blockNode !== activeEditor) {
+        setActiveShadingColor(blockNode.style.backgroundColor || 'transparent');
+      } else {
+        setActiveShadingColor('transparent');
+      }
+    }
     
     let fontName = document.queryCommandValue('fontName');
     if (fontName && typeof fontName === 'string') {
@@ -269,6 +295,82 @@ const CustomEditorPage = () => {
     else if (editorRef.current) editorRef.current.focus();
   };
 
+  const executeShadingCommand = (color) => {
+    const selection = window.getSelection();
+    if (savedSelection.current) {
+      selection.removeAllRanges();
+      selection.addRange(savedSelection.current);
+    }
+    
+    let activeEditor = null;
+    if (isHeaderActive && headerRef.current) activeEditor = headerRef.current;
+    else if (isFooterActive && footerRef.current) activeEditor = footerRef.current;
+    else if (editorRef.current) activeEditor = editorRef.current;
+
+    if (activeEditor && selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      let commonAncestor = range.commonAncestorContainer;
+      if (commonAncestor.nodeType === 3) commonAncestor = commonAncestor.parentNode;
+
+      let blocksToShade = new Set();
+      const blockTags = ['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI'];
+
+      if (commonAncestor === activeEditor || commonAncestor.nodeName === 'UL' || commonAncestor.nodeName === 'OL') {
+        Array.from(commonAncestor.children).forEach(child => {
+          if (selection.containsNode(child, true)) {
+            // Strictly target block elements to avoid destroying inline <span> highlights
+            if (blockTags.includes(child.nodeName)) {
+              blocksToShade.add(child);
+            }
+          }
+        });
+      } else {
+        let blockNode = commonAncestor;
+        while (blockNode && blockNode !== activeEditor && !blockTags.includes(blockNode.nodeName)) {
+          blockNode = blockNode.parentNode;
+        }
+        if (blockNode && blockNode !== activeEditor) {
+          blocksToShade.add(blockNode);
+        }
+      }
+
+      // If no blocks were found (naked text/spans directly in editor), safely wrap them first
+      if (blocksToShade.size === 0) {
+        document.execCommand('formatBlock', false, 'DIV');
+        
+        // Re-evaluate to find the newly created block
+        const newRange = window.getSelection().getRangeAt(0);
+        let newAncestor = newRange.commonAncestorContainer;
+        if (newAncestor.nodeType === 3) newAncestor = newAncestor.parentNode;
+        
+        if (newAncestor === activeEditor) {
+           Array.from(activeEditor.children).forEach(child => {
+             if (window.getSelection().containsNode(child, true) && blockTags.includes(child.nodeName)) {
+               blocksToShade.add(child);
+             }
+           });
+        } else {
+          let newBlockNode = newAncestor;
+          while (newBlockNode && newBlockNode !== activeEditor && !blockTags.includes(newBlockNode.nodeName)) {
+            newBlockNode = newBlockNode.parentNode;
+          }
+          if (newBlockNode && newBlockNode !== activeEditor) {
+            blocksToShade.add(newBlockNode);
+          }
+        }
+      }
+
+      // Apply shading securely to the structural block only, preserving all inner span highlights perfectly on top
+      blocksToShade.forEach(block => {
+        block.style.backgroundColor = color === 'transparent' ? '' : color;
+      });
+    }
+
+    updateActiveStates();
+    setIsShadingDropdownOpen(false);
+    if (activeEditor) activeEditor.focus();
+  };
+
   const executeCommand = (command, value = null) => {
     const selection = window.getSelection();
     if (savedSelection.current) {
@@ -307,6 +409,7 @@ const CustomEditorPage = () => {
             setIsFontSizeDropdownOpen(false);
             setIsFontColorDropdownOpen(false);
             setIsHighlightColorDropdownOpen(false);
+            setIsShadingDropdownOpen(false);
           }
         }}
       >
@@ -416,6 +519,7 @@ const CustomEditorPage = () => {
                 e.preventDefault(); 
                 setIsFontColorDropdownOpen(!isFontColorDropdownOpen); 
                 setIsHighlightColorDropdownOpen(false);
+                setIsShadingDropdownOpen(false);
                 setIsFontDropdownOpen(false);
                 setIsFontSizeDropdownOpen(false);
                 setActiveListDropdown(null);
@@ -454,6 +558,7 @@ const CustomEditorPage = () => {
                 e.preventDefault(); 
                 setIsHighlightColorDropdownOpen(!isHighlightColorDropdownOpen); 
                 setIsFontColorDropdownOpen(false);
+                setIsShadingDropdownOpen(false);
                 setIsFontDropdownOpen(false);
                 setIsFontSizeDropdownOpen(false);
                 setActiveListDropdown(null);
@@ -486,6 +591,53 @@ const CustomEditorPage = () => {
                         executeCommand('hiliteColor', color); 
                         executeCommand('backColor', color);
                         setIsHighlightColorDropdownOpen(false);
+                      }} 
+                      className="w-4 h-4 rounded-sm border border-gray-300 hover:scale-110 transition-transform"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Paragraph Shading */}
+          <div className="relative flex items-center">
+            <button 
+              onMouseDown={(e) => { 
+                e.preventDefault(); 
+                setIsShadingDropdownOpen(!isShadingDropdownOpen); 
+                setIsHighlightColorDropdownOpen(false); 
+                setIsFontColorDropdownOpen(false);
+                setIsFontDropdownOpen(false);
+                setIsFontSizeDropdownOpen(false);
+                setActiveListDropdown(null);
+              }} 
+              className="p-1 px-2 rounded flex flex-col items-center justify-center w-10 h-8 bg-gray-50 border border-transparent hover:bg-gray-100"
+              title="Paragraph Shading"
+            >
+              <FiDroplet size={14} className="text-gray-700" />
+              <div className="w-4 h-1 mt-0.5 border border-gray-200" style={{ backgroundColor: activeShadingColor === 'transparent' || activeShadingColor === 'rgba(0, 0, 0, 0)' ? '#ffffff' : activeShadingColor }}></div>
+            </button>
+            {isShadingDropdownOpen && (
+              <div className="absolute top-full mt-1 left-0 bg-white shadow-lg border border-gray-200 rounded p-2 z-50 w-56 print:hidden">
+                <div className="grid grid-cols-10 gap-1">
+                  <button 
+                    onMouseDown={(e) => { 
+                      e.preventDefault(); 
+                      executeShadingCommand('transparent'); 
+                    }} 
+                    className="col-span-10 text-xs text-center border border-gray-300 rounded mb-1 py-0.5 hover:bg-gray-100"
+                  >
+                    No Color
+                  </button>
+                  {COLORS.map(color => (
+                    <button 
+                      key={color}
+                      onMouseDown={(e) => { 
+                        e.preventDefault(); 
+                        executeShadingCommand(color);
                       }} 
                       className="w-4 h-4 rounded-sm border border-gray-300 hover:scale-110 transition-transform"
                       style={{ backgroundColor: color }}
