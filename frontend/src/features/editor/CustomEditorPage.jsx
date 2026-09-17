@@ -10,6 +10,8 @@ const FONTS = [
   'Verdana'
 ];
 
+const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
+
 const CustomEditorPage = () => {
   const editorRef = useRef(null);
   const headerRef = useRef(null);
@@ -21,6 +23,9 @@ const CustomEditorPage = () => {
   
   const [activeFont, setActiveFont] = useState('Arial');
   const [isFontDropdownOpen, setIsFontDropdownOpen] = useState(false);
+  
+  const [activeFontSize, setActiveFontSize] = useState(12);
+  const [isFontSizeDropdownOpen, setIsFontSizeDropdownOpen] = useState(false);
 
   const [isAlignLeft, setIsAlignLeft] = useState(true);
   const [isAlignCenter, setIsAlignCenter] = useState(false);
@@ -60,7 +65,7 @@ const CustomEditorPage = () => {
     setIsOrderedList(document.queryCommandState('insertOrderedList'));
     
     let fontName = document.queryCommandValue('fontName');
-    if (fontName) {
+    if (fontName && typeof fontName === 'string') {
       setActiveFont(fontName.replace(/['"]/g, ''));
     } else {
       setActiveFont('Arial');
@@ -69,7 +74,68 @@ const CustomEditorPage = () => {
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       savedSelection.current = selection.getRangeAt(0);
+      
+      try {
+        const parentNode = selection.getRangeAt(0).startContainer.parentNode;
+        // Safely verify it's an element node and not the document root before calling getComputedStyle
+        if (parentNode && parentNode.nodeType === 1 && parentNode !== document && parentNode !== document.documentElement) {
+          const computedSize = window.getComputedStyle(parentNode).fontSize;
+          if (computedSize) {
+            const ptVal = Math.round(parseFloat(computedSize) * 0.75);
+            if (!isNaN(ptVal)) {
+              setActiveFontSize(ptVal);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Could not compute active font size safely:', e);
+      }
     }
+  };
+
+  const executeFontSizeCommand = (size) => {
+    const selection = window.getSelection();
+    if (savedSelection.current) {
+      selection.removeAllRanges();
+      selection.addRange(savedSelection.current);
+    }
+    
+    let activeEditor = null;
+    if (isHeaderActive && headerRef.current) activeEditor = headerRef.current;
+    else if (isFooterActive && footerRef.current) activeEditor = footerRef.current;
+    else if (editorRef.current) activeEditor = editorRef.current;
+
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      if (range.collapsed) {
+        // Insert targeted zero-width space span for dynamic typing without selection
+        const span = document.createElement('span');
+        span.style.fontSize = `${size}pt`;
+        span.innerHTML = '&#8203;';
+        
+        range.insertNode(span);
+        
+        // Move caret strictly inside the span, after the zero-width space
+        range.setStart(span.firstChild, 1);
+        range.setEnd(span.firstChild, 1);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      } else {
+        document.execCommand("fontSize", false, "7");
+        if (activeEditor) {
+          const fonts = activeEditor.querySelectorAll('font[size="7"]');
+          fonts.forEach(font => {
+            font.removeAttribute('size');
+            font.style.fontSize = `${size}pt`;
+          });
+        }
+      }
+    }
+
+    updateActiveStates();
+    setIsFontSizeDropdownOpen(false);
+
+    if (activeEditor) activeEditor.focus();
   };
 
   const executeListCommand = (command, listStyleType) => {
@@ -140,42 +206,80 @@ const CustomEditorPage = () => {
             e.preventDefault();
             setActiveListDropdown(null);
             setIsFontDropdownOpen(false);
+            setIsFontSizeDropdownOpen(false);
           }
         }}
       >
         
-        {/* Font Family Dropdown */}
-        <div className="relative flex items-center border-r border-gray-300 pr-2 mr-2">
-          <button 
-            onMouseDown={(e) => { 
-              e.preventDefault(); 
-              setIsFontDropdownOpen(!isFontDropdownOpen); 
-              setActiveListDropdown(null);
-            }} 
-            className="p-1 px-2 rounded flex items-center justify-between w-32 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-sm"
-            title="Font Family"
-          >
-            <span className="truncate" style={{ fontFamily: activeFont }}>{activeFont || 'Font'}</span>
-            <FiChevronDown size={14} className="ml-1 text-gray-500" />
-          </button>
-          {isFontDropdownOpen && (
-            <div className="absolute top-full mt-1 left-0 bg-white shadow-lg border border-gray-200 rounded py-1 z-50 w-48 max-h-64 overflow-y-auto print:hidden">
-              {FONTS.map(font => (
-                <button 
-                  key={font}
-                  onMouseDown={(e) => { 
-                    e.preventDefault(); 
-                    executeCommand('fontName', font);
-                    setIsFontDropdownOpen(false);
-                  }} 
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-blue-50 ${activeFont === font ? 'bg-blue-100 text-blue-700' : ''}`}
-                  style={{ fontFamily: font }}
-                >
-                  {font}
-                </button>
-              ))}
-            </div>
-          )}
+        {/* Font Controls */}
+        <div className="relative flex items-center border-r border-gray-300 pr-2 mr-2 gap-1">
+          {/* Font Family Dropdown */}
+          <div className="relative">
+            <button 
+              onMouseDown={(e) => { 
+                e.preventDefault(); 
+                setIsFontDropdownOpen(!isFontDropdownOpen); 
+                setIsFontSizeDropdownOpen(false);
+                setActiveListDropdown(null);
+              }} 
+              className="p-1 px-2 rounded flex items-center justify-between w-32 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-sm"
+              title="Font Family"
+            >
+              <span className="truncate" style={{ fontFamily: activeFont }}>{activeFont || 'Font'}</span>
+              <FiChevronDown size={14} className="ml-1 text-gray-500" />
+            </button>
+            {isFontDropdownOpen && (
+              <div className="absolute top-full mt-1 left-0 bg-white shadow-lg border border-gray-200 rounded py-1 z-50 w-48 max-h-64 overflow-y-auto print:hidden">
+                {FONTS.map(font => (
+                  <button 
+                    key={font}
+                    onMouseDown={(e) => { 
+                      e.preventDefault(); 
+                      executeCommand('fontName', font);
+                      setIsFontDropdownOpen(false);
+                    }} 
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-blue-50 ${activeFont === font ? 'bg-blue-100 text-blue-700' : ''}`}
+                    style={{ fontFamily: font }}
+                  >
+                    {font}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Font Size Dropdown */}
+          <div className="relative flex items-center">
+            <button 
+              onMouseDown={(e) => { 
+                e.preventDefault(); 
+                setIsFontSizeDropdownOpen(!isFontSizeDropdownOpen); 
+                setIsFontDropdownOpen(false);
+                setActiveListDropdown(null);
+              }} 
+              className="p-1 px-2 rounded flex items-center justify-between w-16 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-sm"
+              title="Font Size"
+            >
+              <span>{activeFontSize}</span>
+              <FiChevronDown size={14} className="ml-1 text-gray-500" />
+            </button>
+            {isFontSizeDropdownOpen && (
+              <div className="absolute top-full mt-1 left-0 bg-white shadow-lg border border-gray-200 rounded py-1 z-50 w-16 max-h-64 overflow-y-auto print:hidden">
+                {FONT_SIZES.map(size => (
+                  <button 
+                    key={size}
+                    onMouseDown={(e) => { 
+                      e.preventDefault(); 
+                      executeFontSizeCommand(size);
+                    }} 
+                    className={`w-full text-center px-2 py-1 text-sm hover:bg-blue-50 ${activeFontSize === size ? 'bg-blue-100 text-blue-700' : ''}`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Text Styles (B, I, U only) */}
