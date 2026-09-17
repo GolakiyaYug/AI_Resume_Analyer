@@ -65,6 +65,12 @@ const Navbar = () => {
 
             {isAuthenticated ? (
               <>
+                <Link
+                  to="/custom-editor"
+                  className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+                >
+                  📝 WordPad Editor
+                </Link>
                 {/* User Avatar Dropdown */}
                 <div className="relative" ref={dropdownRef}>
                   <button

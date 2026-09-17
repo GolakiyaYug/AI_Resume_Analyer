@@ -226,3 +226,27 @@
   break-after: page;
   page-break-after: always;
 }
+
+/* =========================================================
+   WORDPAD EDITOR LIST FIXES
+   Resolves cursor placement issues on list numbers/bullets
+   and fixes alignment/indentation for contenteditable lists.
+   ========================================================= */
+[contenteditable] ol,
+[contenteditable] ul {
+  list-style-position: inside !important;
+  padding-left: 1.5rem !important;
+  margin-left: 0 !important;
+}
+
+[contenteditable] li {
+  padding-left: 1.5rem !important;
+  text-indent: -1.5rem !important;
+  margin-bottom: 0.25rem !important;
+}
+
+[contenteditable] li > ol,
+[contenteditable] li > ul {
+  padding-left: 1.5rem !important;
+  margin-top: 0.25rem !important;
+}

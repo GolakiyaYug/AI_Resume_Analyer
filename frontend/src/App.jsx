@@ -10,6 +10,7 @@ import MyResumesPage from './features/resume/MyResumesPage';
 import AnalyzePage from './features/analysis/AnalyzePage';
 import ForgotPasswordPage from './features/auth/ForgotPasswordPage';
 import ProfilePage from './features/profile/ProfilePage';
+import CustomEditorPage from './features/editor/CustomEditorPage';
 
 function App() {
   return (
@@ -55,6 +56,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/custom-editor"
+                element={
+                  <ProtectedRoute>
+                    <CustomEditorPage />
                   </ProtectedRoute>
                 }
               />
