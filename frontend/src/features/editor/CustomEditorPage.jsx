@@ -1,5 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { FiBold, FiItalic, FiUnderline, FiAlignLeft, FiAlignCenter, FiAlignRight, FiList, FiChevronDown } from 'react-icons/fi';
+import { FiBold, FiItalic, FiUnderline, FiAlignLeft, FiAlignCenter, FiAlignRight, FiList, FiChevronDown, FiType, FiEdit2 } from 'react-icons/fi';
+
+const COLORS = [
+  '#000000', '#434343', '#666666', '#999999', '#B7B7B7', '#CCCCCC', '#D9D9D9', '#EFEFEF', '#F3F3F3', '#FFFFFF',
+  '#980000', '#FF0000', '#FF9900', '#FFFF00', '#00FF00', '#00FFFF', '#4A86E8', '#0000FF', '#9900FF', '#FF00FF',
+  '#CC4125', '#E06666', '#F6B26B', '#FFD966', '#93C47D', '#76A5AF', '#6D9EEB', '#6FA8DC', '#8E7CC3', '#C27BA0',
+  '#A61C00', '#CC0000', '#E69138', '#F1C232', '#6AA84F', '#45818E', '#3C78D8', '#3D85C6', '#674EA7', '#A64D79'
+];
 
 const FONTS = [
   'Arial',
@@ -31,6 +38,11 @@ const CustomEditorPage = () => {
   const [isAlignCenter, setIsAlignCenter] = useState(false);
   const [isAlignRight, setIsAlignRight] = useState(false);
 
+  const [activeFontColor, setActiveFontColor] = useState('#000000');
+  const [isFontColorDropdownOpen, setIsFontColorDropdownOpen] = useState(false);
+  const [activeHighlightColor, setActiveHighlightColor] = useState('transparent');
+  const [isHighlightColorDropdownOpen, setIsHighlightColorDropdownOpen] = useState(false);
+
   const [isHeaderActive, setIsHeaderActive] = useState(false);
   const [isFooterActive, setIsFooterActive] = useState(false);
   
@@ -46,6 +58,85 @@ const CustomEditorPage = () => {
     }
     updateActiveStates();
   }, []);
+
+  const handleKeyDown = (e) => {
+    if (e.key === ' ' || e.code === 'Space') {
+      const selection = window.getSelection();
+      if (!selection || !selection.isCollapsed || selection.rangeCount === 0) return;
+
+      const range = selection.getRangeAt(0);
+      let container = range.startContainer;
+      let offset = range.startOffset;
+
+      if (container.nodeType === 3 && offset === container.nodeValue.length) {
+        let currentNode = container;
+        let styledParent = null;
+
+        // Traverse up to find the highest active formatting span/font tag
+        while (currentNode && currentNode !== editorRef.current && currentNode !== headerRef.current && currentNode !== footerRef.current) {
+          if (currentNode.nodeType === 1) {
+            const hasColor = currentNode.style && (currentNode.style.color || currentNode.style.backgroundColor);
+            const isFontTag = currentNode.nodeName === 'FONT';
+            if (hasColor || isFontTag) {
+              styledParent = currentNode;
+            }
+          }
+          currentNode = currentNode.parentNode;
+        }
+
+        if (styledParent) {
+          // Check if we are truly at the absolute end of the styled parent boundary
+          let isAtVeryEnd = true;
+          let checkNode = container;
+          while (checkNode && checkNode !== styledParent) {
+            if (checkNode.nextSibling) {
+              isAtVeryEnd = false;
+              break;
+            }
+            checkNode = checkNode.parentNode;
+          }
+
+          if (isAtVeryEnd) {
+            e.preventDefault();
+            
+            // Save core text styles before breaking out
+            const wasBold = document.queryCommandState('bold');
+            const wasItalic = document.queryCommandState('italic');
+            const wasUnderline = document.queryCommandState('underline');
+            
+            // Insert a clean unstyled text node OUTSIDE the colored span
+            const cleanNode = document.createTextNode('\u00A0'); // non-breaking space ensures stability
+            
+            if (styledParent.nextSibling) {
+              styledParent.parentNode.insertBefore(cleanNode, styledParent.nextSibling);
+            } else {
+              styledParent.parentNode.appendChild(cleanNode);
+            }
+            
+            // Forcefully move caret to the clean node
+            range.setStart(cleanNode, 1);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            // Restore structural formatting if they were stripped
+            if (wasBold && !document.queryCommandState('bold')) document.execCommand('bold', false, null);
+            if (wasItalic && !document.queryCommandState('italic')) document.execCommand('italic', false, null);
+            if (wasUnderline && !document.queryCommandState('underline')) document.execCommand('underline', false, null);
+            
+            // Ensure next typed text inherits default colors perfectly
+            document.execCommand('styleWithCSS', false, true);
+            document.execCommand('foreColor', false, '#000000');
+            document.execCommand('backColor', false, 'transparent');
+            document.execCommand('hiliteColor', false, 'transparent');
+            
+            setActiveFontColor('#000000');
+            setActiveHighlightColor('transparent');
+          }
+        }
+      }
+    }
+  };
 
   const updateActiveStates = () => {
     setIsBold(document.queryCommandState('bold'));
@@ -63,6 +154,12 @@ const CustomEditorPage = () => {
     
     setIsUnorderedList(document.queryCommandState('insertUnorderedList'));
     setIsOrderedList(document.queryCommandState('insertOrderedList'));
+    
+    let foreColor = document.queryCommandValue('foreColor');
+    if (foreColor) setActiveFontColor(foreColor);
+    
+    let backColor = document.queryCommandValue('backColor') || document.queryCommandValue('hiliteColor');
+    if (backColor) setActiveHighlightColor(backColor);
     
     let fontName = document.queryCommandValue('fontName');
     if (fontName && typeof fontName === 'string') {
@@ -179,6 +276,7 @@ const CustomEditorPage = () => {
       selection.addRange(savedSelection.current);
     }
     
+    document.execCommand('styleWithCSS', false, true);
     document.execCommand(command, false, value);
     updateActiveStates();
 
@@ -207,6 +305,8 @@ const CustomEditorPage = () => {
             setActiveListDropdown(null);
             setIsFontDropdownOpen(false);
             setIsFontSizeDropdownOpen(false);
+            setIsFontColorDropdownOpen(false);
+            setIsHighlightColorDropdownOpen(false);
           }
         }}
       >
@@ -305,6 +405,97 @@ const CustomEditorPage = () => {
           >
             <FiUnderline />
           </button>
+        </div>
+
+        {/* Colors */}
+        <div className="flex items-center gap-1 border-l border-gray-300 pl-2 pr-2">
+          {/* Font Color */}
+          <div className="relative flex items-center">
+            <button 
+              onMouseDown={(e) => { 
+                e.preventDefault(); 
+                setIsFontColorDropdownOpen(!isFontColorDropdownOpen); 
+                setIsHighlightColorDropdownOpen(false);
+                setIsFontDropdownOpen(false);
+                setIsFontSizeDropdownOpen(false);
+                setActiveListDropdown(null);
+              }} 
+              className="p-1 px-2 rounded flex flex-col items-center justify-center w-10 h-8 bg-gray-50 border border-transparent hover:bg-gray-100"
+              title="Text Color"
+            >
+              <FiType size={14} className="text-gray-700" />
+              <div className="w-4 h-1 mt-0.5" style={{ backgroundColor: activeFontColor }}></div>
+            </button>
+            {isFontColorDropdownOpen && (
+              <div className="absolute top-full mt-1 left-0 bg-white shadow-lg border border-gray-200 rounded p-2 z-50 w-56 print:hidden">
+                <div className="grid grid-cols-10 gap-1">
+                  {COLORS.map(color => (
+                    <button 
+                      key={color}
+                      onMouseDown={(e) => { 
+                        e.preventDefault(); 
+                        executeCommand('foreColor', color);
+                        setIsFontColorDropdownOpen(false);
+                      }} 
+                      className="w-4 h-4 rounded-sm border border-gray-300 hover:scale-110 transition-transform"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Highlight Color */}
+          <div className="relative flex items-center">
+            <button 
+              onMouseDown={(e) => { 
+                e.preventDefault(); 
+                setIsHighlightColorDropdownOpen(!isHighlightColorDropdownOpen); 
+                setIsFontColorDropdownOpen(false);
+                setIsFontDropdownOpen(false);
+                setIsFontSizeDropdownOpen(false);
+                setActiveListDropdown(null);
+              }} 
+              className="p-1 px-2 rounded flex flex-col items-center justify-center w-10 h-8 bg-gray-50 border border-transparent hover:bg-gray-100"
+              title="Text Highlight Color"
+            >
+              <FiEdit2 size={14} className="text-gray-700" />
+              <div className="w-4 h-1 mt-0.5 border border-gray-200" style={{ backgroundColor: activeHighlightColor === 'transparent' || activeHighlightColor === 'rgba(0, 0, 0, 0)' ? '#ffffff' : activeHighlightColor }}></div>
+            </button>
+            {isHighlightColorDropdownOpen && (
+              <div className="absolute top-full mt-1 left-0 bg-white shadow-lg border border-gray-200 rounded p-2 z-50 w-56 print:hidden">
+                <div className="grid grid-cols-10 gap-1">
+                  <button 
+                    onMouseDown={(e) => { 
+                      e.preventDefault(); 
+                      executeCommand('backColor', 'transparent'); 
+                      executeCommand('hiliteColor', 'transparent'); 
+                      setIsHighlightColorDropdownOpen(false);
+                    }} 
+                    className="col-span-10 text-xs text-center border border-gray-300 rounded mb-1 py-0.5 hover:bg-gray-100"
+                  >
+                    No Color
+                  </button>
+                  {COLORS.map(color => (
+                    <button 
+                      key={color}
+                      onMouseDown={(e) => { 
+                        e.preventDefault(); 
+                        executeCommand('hiliteColor', color); 
+                        executeCommand('backColor', color);
+                        setIsHighlightColorDropdownOpen(false);
+                      }} 
+                      className="w-4 h-4 rounded-sm border border-gray-300 hover:scale-110 transition-transform"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Alignment */}
@@ -415,6 +606,7 @@ const CustomEditorPage = () => {
           }}
           onBlur={() => setIsHeaderActive(false)}
           onKeyUp={updateActiveStates}
+          onKeyDown={handleKeyDown}
           onMouseUp={updateActiveStates}
           onFocus={updateActiveStates}
           className={`w-full max-w-full break-words [word-break:break-word] min-h-[100px] px-12 pt-12 pb-4 outline-none text-gray-500 text-sm transition-all ${isHeaderActive ? 'border-b-2 border-dashed border-gray-300 bg-gray-50 ring-2 ring-blue-100' : 'cursor-default hover:bg-gray-50/50 print:border-none print:bg-transparent'}`}
@@ -428,6 +620,7 @@ const CustomEditorPage = () => {
           contentEditable
           suppressContentEditableWarning
           onKeyUp={updateActiveStates}
+          onKeyDown={handleKeyDown}
           onMouseUp={updateActiveStates}
           onFocus={updateActiveStates}
           className="w-full flex-1 px-12 py-4 outline-none prose max-w-none text-gray-800 text-left font-normal"
@@ -448,6 +641,7 @@ const CustomEditorPage = () => {
           }}
           onBlur={() => setIsFooterActive(false)}
           onKeyUp={updateActiveStates}
+          onKeyDown={handleKeyDown}
           onMouseUp={updateActiveStates}
           onFocus={updateActiveStates}
           className={`w-full max-w-full break-words [word-break:break-word] min-h-[100px] px-12 pb-12 pt-4 outline-none text-gray-500 text-sm transition-all ${isFooterActive ? 'border-t-2 border-dashed border-gray-300 bg-gray-50 ring-2 ring-blue-100' : 'cursor-default hover:bg-gray-50/50 print:border-none print:bg-transparent'}`}
