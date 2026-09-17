@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { FiBold, FiItalic, FiUnderline, FiAlignLeft, FiAlignCenter, FiAlignRight, FiList, FiChevronDown, FiType, FiEdit2, FiDroplet } from 'react-icons/fi';
+import { FiBold, FiItalic, FiUnderline, FiAlignLeft, FiAlignCenter, FiAlignRight, FiList, FiChevronDown, FiType, FiEdit2, FiDroplet, FiGrid, FiMove } from 'react-icons/fi';
 
 const COLORS = [
   '#000000', '#434343', '#666666', '#999999', '#B7B7B7', '#CCCCCC', '#D9D9D9', '#EFEFEF', '#F3F3F3', '#FFFFFF',
@@ -46,6 +46,10 @@ const CustomEditorPage = () => {
   const [isShadingDropdownOpen, setIsShadingDropdownOpen] = useState(false);
   const [activeBorder, setActiveBorder] = useState('none');
   const [isBorderDropdownOpen, setIsBorderDropdownOpen] = useState(false);
+  const [isTableDropdownOpen, setIsTableDropdownOpen] = useState(false);
+  const [hoveredRows, setHoveredRows] = useState(0);
+  const [hoveredCols, setHoveredCols] = useState(0);
+  const [activeTablePos, setActiveTablePos] = useState(null);
 
   const [isHeaderActive, setIsHeaderActive] = useState(false);
   const [isFooterActive, setIsFooterActive] = useState(false);
@@ -54,7 +58,269 @@ const CustomEditorPage = () => {
   const [isOrderedList, setIsOrderedList] = useState(false);
   const [activeListDropdown, setActiveListDropdown] = useState(null);
   
+  const [dropIndicatorPos, setDropIndicatorPos] = useState(null);
+
   const savedSelection = useRef(null);
+  const resizingRef = useRef(null);
+  const draggedTableRef = useRef(null);
+
+  const updateDropIndicator = (clientX, clientY) => {
+    let activeEditor = isHeaderActive ? headerRef.current : isFooterActive ? footerRef.current : editorRef.current;
+    if (!activeEditor) return;
+
+    if (!clientX && !clientY) return;
+
+    const editorRect = activeEditor.getBoundingClientRect();
+    if (clientY < editorRect.top - 60 || clientY > editorRect.bottom + 60) {
+      setDropIndicatorPos(null);
+      return;
+    }
+
+    const children = Array.from(activeEditor.children).filter(child => child.nodeType === 1 && child.tagName !== 'SCRIPT' && child.tagName !== 'STYLE');
+    if (children.length === 0) {
+      setDropIndicatorPos({
+        top: editorRect.top + 20,
+        left: editorRect.left + 48,
+        width: editorRect.width - 96,
+        targetBlock: activeEditor,
+        insertBefore: false
+      });
+      return;
+    }
+
+    let closestChild = null;
+    let minDistance = Infinity;
+    let insertBefore = true;
+
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      const rect = child.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      const distance = Math.abs(clientY - midY);
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestChild = child;
+        insertBefore = clientY < midY;
+      }
+    }
+
+    if (closestChild) {
+      const blockRect = closestChild.getBoundingClientRect();
+      const indicatorY = insertBefore ? blockRect.top - 2 : blockRect.bottom - 2;
+
+      setDropIndicatorPos({
+        top: indicatorY,
+        left: blockRect.left,
+        width: blockRect.width,
+        targetBlock: closestChild,
+        insertBefore: insertBefore
+      });
+    }
+  };
+
+  const executeTableDrop = (table) => {
+    let activeEditor = isHeaderActive ? headerRef.current : isFooterActive ? footerRef.current : editorRef.current;
+
+    if (table && dropIndicatorPos && activeEditor) {
+      const { targetBlock, insertBefore } = dropIndicatorPos;
+
+      if (targetBlock === activeEditor) {
+        activeEditor.appendChild(table);
+      } else if (targetBlock && targetBlock !== table) {
+        if (insertBefore) {
+          activeEditor.insertBefore(table, targetBlock);
+        } else {
+          if (targetBlock.nextSibling) {
+            activeEditor.insertBefore(table, targetBlock.nextSibling);
+          } else {
+            activeEditor.appendChild(table);
+          }
+        }
+      }
+
+      if (!table.nextSibling || table.nextSibling.nodeName !== 'P') {
+        const p = document.createElement('p');
+        p.innerHTML = '<br>';
+        if (table.nextSibling) {
+          activeEditor.insertBefore(p, table.nextSibling);
+        } else {
+          activeEditor.appendChild(p);
+        }
+      }
+
+      const newRect = table.getBoundingClientRect();
+      setActiveTablePos({ top: newRect.top, left: newRect.left, table: table });
+    }
+
+    setDropIndicatorPos(null);
+    draggedTableRef.current = null;
+  };
+
+  const handleTableMouseMove = (e) => {
+    if (resizingRef.current) return;
+
+    let target = e.target;
+    const isInsideTable = target && (target.closest('table') !== null);
+
+    if (!isInsideTable) {
+      if (activeTablePos) setActiveTablePos(null);
+      return;
+    }
+
+    const table = target.closest('table');
+    if (table) {
+      const tableRect = table.getBoundingClientRect();
+      setActiveTablePos({ top: tableRect.top, left: tableRect.left, table: table });
+
+      if (target.nodeName === 'TD' || target.nodeName === 'TH') {
+        const rect = target.getBoundingClientRect();
+        const isTopLeftCorner = (e.clientX - tableRect.left) <= 16 && (e.clientX - tableRect.left) >= -8 && (e.clientY - tableRect.top) <= 16 && (e.clientY - tableRect.top) >= -8;
+        const isBottomRightCorner = (tableRect.right - e.clientX) <= 12 && (tableRect.right - e.clientX) >= -4 && (tableRect.bottom - e.clientY) <= 12 && (tableRect.bottom - e.clientY) >= -4;
+        const isRightEdge = (rect.right - e.clientX) <= 6 && (rect.right - e.clientX) >= -2;
+        const isBottomEdge = (rect.bottom - e.clientY) <= 6 && (rect.bottom - e.clientY) >= -2;
+
+        if (isTopLeftCorner) {
+          target.style.cursor = 'move';
+        } else if (isBottomRightCorner) {
+          target.style.cursor = 'se-resize';
+        } else if (isRightEdge) {
+          target.style.cursor = 'col-resize';
+        } else if (isBottomEdge) {
+          target.style.cursor = 'row-resize';
+        } else {
+          target.style.cursor = 'text';
+        }
+      }
+    }
+  };
+
+  const handleTableMouseDown = (e) => {
+    let target = e.target;
+    while (target && target !== editorRef.current && target !== headerRef.current && target !== footerRef.current && target.nodeName !== 'TD' && target.nodeName !== 'TH' && target.nodeName !== 'TABLE') {
+      target = target.parentNode;
+    }
+
+    if (!target || target === editorRef.current || target === headerRef.current || target === footerRef.current) return;
+
+    if (target.nodeName === 'TD' || target.nodeName === 'TH') {
+      const rect = target.getBoundingClientRect();
+      const table = target.closest('table');
+      const tableRect = table ? table.getBoundingClientRect() : rect;
+
+      const isBottomRightCorner = (tableRect.right - e.clientX) <= 12 && (tableRect.right - e.clientX) >= -4 && (tableRect.bottom - e.clientY) <= 12 && (tableRect.bottom - e.clientY) >= -4;
+      const isRightEdge = (rect.right - e.clientX) <= 6 && (rect.right - e.clientX) >= -2;
+      const isBottomEdge = (rect.bottom - e.clientY) <= 6 && (rect.bottom - e.clientY) >= -2;
+
+      if (isBottomRightCorner || isRightEdge || isBottomEdge) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (table) {
+          table.style.tableLayout = 'fixed';
+        }
+
+        const row = target.parentNode;
+        const colIndex = Array.from(row.children).indexOf(target);
+        const nextCell = row.children[colIndex + 1] || null;
+
+        const startWidth1 = target.offsetWidth;
+        const startWidth2 = nextCell ? nextCell.offsetWidth : 0;
+        const startHeight = row.offsetHeight;
+        const startTableWidth = table ? table.offsetWidth : 0;
+        const startTableHeight = table ? table.offsetHeight : 0;
+
+        resizingRef.current = {
+          type: isBottomRightCorner ? 'scale' : isRightEdge ? 'col' : 'row',
+          startX: e.clientX,
+          startY: e.clientY,
+          cell: target,
+          nextCell: nextCell,
+          colIndex: colIndex,
+          row: row,
+          table: table,
+          startWidth1: startWidth1,
+          startWidth2: startWidth2,
+          startHeight: startHeight,
+          startTableWidth: startTableWidth,
+          startTableHeight: startTableHeight
+        };
+
+        const handleWindowMouseMove = (moveEvent) => {
+          if (!resizingRef.current) return;
+          moveEvent.preventDefault();
+
+          const { type, startX, startY, colIndex, nextCell, row, table, startWidth1, startWidth2, startHeight, startTableWidth, startTableHeight } = resizingRef.current;
+
+          if (type === 'move') {
+            updateDropIndicator(moveEvent.clientX, moveEvent.clientY);
+          } else if (type === 'scale') {
+            const deltaX = moveEvent.clientX - startX;
+            const deltaY = moveEvent.clientY - startY;
+
+            const newTableWidth = Math.max(100, startTableWidth + deltaX);
+            const newTableHeight = Math.max(40, startTableHeight + deltaY);
+
+            if (table) {
+              table.style.width = `${newTableWidth}px`;
+              table.style.height = `${newTableHeight}px`;
+            }
+          } else if (type === 'col') {
+            const deltaX = moveEvent.clientX - startX;
+
+            if (nextCell) {
+              const newWidth1 = Math.max(25, startWidth1 + deltaX);
+              const newWidth2 = Math.max(25, startWidth2 - deltaX);
+
+              if (table) {
+                Array.from(table.rows).forEach(r => {
+                  if (r.children[colIndex]) {
+                    r.children[colIndex].style.width = `${newWidth1}px`;
+                    r.children[colIndex].style.minWidth = `${newWidth1}px`;
+                  }
+                  if (r.children[colIndex + 1]) {
+                    r.children[colIndex + 1].style.width = `${newWidth2}px`;
+                    r.children[colIndex + 1].style.minWidth = `${newWidth2}px`;
+                  }
+                });
+              }
+            } else {
+              const newWidth = Math.max(25, startWidth1 + deltaX);
+              if (table) {
+                table.style.width = `${Math.max(100, startTableWidth + deltaX)}px`;
+                Array.from(table.rows).forEach(r => {
+                  if (r.children[colIndex]) {
+                    r.children[colIndex].style.width = `${newWidth}px`;
+                    r.children[colIndex].style.minWidth = `${newWidth}px`;
+                  }
+                });
+              }
+            }
+          } else if (type === 'row') {
+            const deltaY = moveEvent.clientY - startY;
+            const newHeight = Math.max(20, startHeight + deltaY);
+
+            row.style.height = `${newHeight}px`;
+            Array.from(row.children).forEach(child => {
+              child.style.height = `${newHeight}px`;
+            });
+          }
+        };
+
+        const handleWindowMouseUp = () => {
+          if (resizingRef.current && resizingRef.current.type === 'move') {
+            executeTableDrop(resizingRef.current.table);
+          }
+          resizingRef.current = null;
+          window.removeEventListener('mousemove', handleWindowMouseMove);
+          window.removeEventListener('mouseup', handleWindowMouseUp);
+        };
+
+        window.addEventListener('mousemove', handleWindowMouseMove);
+        window.addEventListener('mouseup', handleWindowMouseUp);
+      }
+    }
+  };
 
   useEffect(() => {
     if (editorRef.current) {
@@ -179,6 +445,68 @@ const CustomEditorPage = () => {
       }
     }
 
+    // 3. TAB KEY: Navigate across table cells
+    if (e.key === 'Tab') {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        let node = selection.getRangeAt(0).startContainer;
+        let activeEditor = isHeaderActive ? headerRef.current : isFooterActive ? footerRef.current : editorRef.current;
+
+        let cellNode = node;
+        while (cellNode && cellNode !== activeEditor && !['TD', 'TH'].includes(cellNode.nodeName)) {
+          cellNode = cellNode.parentNode;
+        }
+
+        if (cellNode && cellNode !== activeEditor) {
+          e.preventDefault();
+          const tr = cellNode.parentNode;
+
+          if (e.shiftKey) {
+            let prevCell = cellNode.previousElementSibling;
+            if (!prevCell && tr.previousElementSibling) {
+              prevCell = tr.previousElementSibling.lastElementChild;
+            }
+            if (prevCell) {
+              const range = document.createRange();
+              range.setStart(prevCell, 0);
+              range.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(range);
+            }
+          } else {
+            let nextCell = cellNode.nextElementSibling;
+            if (!nextCell && tr.nextElementSibling) {
+              nextCell = tr.nextElementSibling.firstElementChild;
+            } else if (!nextCell && !tr.nextElementSibling) {
+              // Add a new row to table if on last cell of last row!
+              const colsCount = tr.children.length;
+              const newTr = document.createElement('tr');
+              for (let c = 0; c < colsCount; c++) {
+                const newTd = document.createElement('td');
+                newTd.style.border = '1.5px solid #000000';
+                newTd.style.padding = '8px 12px';
+                newTd.style.minHeight = '28px';
+                newTd.style.verticalAlign = 'top';
+                newTd.innerHTML = '<br>';
+                newTr.appendChild(newTd);
+              }
+              tr.parentNode.appendChild(newTr);
+              nextCell = newTr.firstElementChild;
+            }
+            if (nextCell) {
+              const range = document.createRange();
+              range.setStart(nextCell, 0);
+              range.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(range);
+            }
+          }
+          updateActiveStates();
+          return;
+        }
+      }
+    }
+
     if (e.key === ' ' || e.code === 'Space') {
       const selection = window.getSelection();
       if (!selection || !selection.isCollapsed || selection.rangeCount === 0) return;
@@ -191,7 +519,7 @@ const CustomEditorPage = () => {
         let currentNode = container;
         let styledParent = null;
 
-        const blockTags = ['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'TD', 'TH'];
+        const blockTags = ['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'TD', 'TH', 'TABLE', 'TR'];
 
         // Traverse up to find the highest active inline formatting span/font tag
         while (currentNode && currentNode !== editorRef.current && currentNode !== headerRef.current && currentNode !== footerRef.current) {
@@ -597,6 +925,39 @@ const CustomEditorPage = () => {
     if (activeEditor) activeEditor.focus();
   };
 
+  const insertTable = (rows, cols) => {
+    const selection = window.getSelection();
+    if (savedSelection.current) {
+      selection.removeAllRanges();
+      selection.addRange(savedSelection.current);
+    }
+    
+    let activeEditor = null;
+    if (isHeaderActive && headerRef.current) activeEditor = headerRef.current;
+    else if (isFooterActive && footerRef.current) activeEditor = footerRef.current;
+    else if (editorRef.current) activeEditor = editorRef.current;
+
+    if (activeEditor) {
+      activeEditor.focus();
+      
+      let rowsHTML = '';
+      for (let r = 0; r < rows; r++) {
+        let colsHTML = '';
+        for (let c = 0; c < cols; c++) {
+          colsHTML += `<td style="border: 1.5px solid #000000; padding: 8px 12px; min-height: 28px; vertical-align: top;"><br></td>`;
+        }
+        rowsHTML += `<tr>${colsHTML}</tr>`;
+      }
+      
+      const tableHTML = `<table style="width: 100%; border-collapse: collapse; margin: 12px 0; border: 1.5px solid #000000; table-layout: fixed;"><tbody>${rowsHTML}</tbody></table><p><br></p>`;
+
+      document.execCommand('insertHTML', false, tableHTML);
+    }
+
+    setIsTableDropdownOpen(false);
+    updateActiveStates();
+  };
+
   const executeCommand = (command, value = null) => {
     const selection = window.getSelection();
     if (savedSelection.current) {
@@ -625,6 +986,96 @@ const CustomEditorPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8 font-sans flex flex-col items-center">
+      <style>{`
+        .prose table { border: 1.5px solid #000000 !important; border-collapse: collapse !important; }
+        .prose td, .prose th { border: 1.5px solid #000000 !important; }
+      `}</style>
+      
+      {/* Glowing Blue Drop Indicator Line (Word-style Insertion Bar) */}
+      {dropIndicatorPos && (
+        <div 
+          style={{ 
+            position: 'fixed', 
+            top: `${dropIndicatorPos.top}px`, 
+            left: `${dropIndicatorPos.left}px`, 
+            width: `${dropIndicatorPos.width}px`, 
+            height: '3px', 
+            backgroundColor: '#2563EB', 
+            borderRadius: '2px', 
+            zIndex: 100, 
+            pointerEvents: 'none',
+            boxShadow: '0 0 10px rgba(37, 99, 235, 0.8)'
+          }} 
+          className="transition-all duration-75 ease-out print:hidden"
+        />
+      )}
+
+      {/* Floating Table Move Handle Button */}
+      {activeTablePos && (
+        <div 
+          style={{ 
+            position: 'fixed', 
+            top: `${activeTablePos.top - 12}px`, 
+            left: `${activeTablePos.left - 12}px`,
+            zIndex: 60
+          }}
+          draggable={true}
+          onDragStart={(e) => {
+            const table = activeTablePos?.table;
+            if (!table) return;
+            draggedTableRef.current = table;
+            e.dataTransfer.setData('text/plain', 'table-drag');
+            e.dataTransfer.effectAllowed = 'move';
+          }}
+          onDrag={(e) => {
+            if (e.clientX && e.clientY) {
+              updateDropIndicator(e.clientX, e.clientY);
+            }
+          }}
+          onDragEnd={() => {
+            if (draggedTableRef.current) {
+              executeTableDrop(draggedTableRef.current);
+            } else {
+              setDropIndicatorPos(null);
+            }
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+
+            const handleBtn = e.currentTarget;
+            const table = activeTablePos.table;
+            let activeEditor = isHeaderActive ? headerRef.current : isFooterActive ? footerRef.current : editorRef.current;
+
+            resizingRef.current = {
+              type: 'move',
+              table: table,
+              handleBtn: handleBtn,
+              activeEditor: activeEditor
+            };
+
+            const handleWindowMouseMove = (moveEvent) => {
+              if (!resizingRef.current || resizingRef.current.type !== 'move') return;
+              updateDropIndicator(moveEvent.clientX, moveEvent.clientY);
+            };
+
+            const handleWindowMouseUp = () => {
+              if (resizingRef.current && resizingRef.current.type === 'move') {
+                executeTableDrop(resizingRef.current.table);
+              }
+              resizingRef.current = null;
+              window.removeEventListener('mousemove', handleWindowMouseMove);
+              window.removeEventListener('mouseup', handleWindowMouseUp);
+            };
+
+            window.addEventListener('mousemove', handleWindowMouseMove);
+            window.addEventListener('mouseup', handleWindowMouseUp);
+          }}
+          className="w-6 h-6 bg-blue-600 hover:bg-blue-700 text-white rounded flex items-center justify-center cursor-move shadow-md print:hidden select-none"
+          title="Drag to move table"
+        >
+          <FiMove size={14} />
+        </div>
+      )}
       <div 
         className="w-full max-w-4xl bg-white rounded-t-xl shadow-md border border-gray-200 p-2 flex flex-wrap items-center gap-2 sticky top-16 z-40 print:hidden"
         onMouseDown={(e) => {
@@ -637,6 +1088,7 @@ const CustomEditorPage = () => {
             setIsHighlightColorDropdownOpen(false);
             setIsShadingDropdownOpen(false);
             setIsBorderDropdownOpen(false);
+            setIsTableDropdownOpen(false);
           }
         }}
       >
@@ -1054,6 +1506,83 @@ const CustomEditorPage = () => {
           </div>
         </div>
 
+        {/* Insert Table Grid Dropdown */}
+        <div className="flex items-center border-l border-gray-300 pl-2 pr-2">
+          <div className="relative flex items-center">
+            <button 
+              onMouseDown={(e) => { 
+                e.preventDefault(); 
+                setIsTableDropdownOpen(!isTableDropdownOpen); 
+                setIsBorderDropdownOpen(false); 
+                setIsShadingDropdownOpen(false); 
+                setIsHighlightColorDropdownOpen(false); 
+                setIsFontColorDropdownOpen(false);
+                setIsFontDropdownOpen(false);
+                setIsFontSizeDropdownOpen(false);
+                setActiveListDropdown(null);
+                setHoveredRows(0);
+                setHoveredCols(0);
+              }} 
+              className={`p-1.5 px-2 rounded flex items-center gap-1 bg-gray-50 border border-transparent hover:bg-gray-100 text-gray-700 text-sm ${isTableDropdownOpen ? 'bg-blue-100 text-blue-700 shadow-inner' : ''}`}
+              title="Insert Table"
+            >
+              <FiGrid size={16} className="text-gray-700" />
+              <span className="text-xs font-medium">Table</span>
+              <FiChevronDown size={12} className="text-gray-500" />
+            </button>
+
+            {isTableDropdownOpen && (
+              <div 
+                className="absolute top-full mt-1 left-0 bg-white shadow-xl border border-gray-200 rounded-lg p-3 z-50 w-56 flex flex-col gap-2 print:hidden"
+                onMouseLeave={() => { setHoveredRows(0); setHoveredCols(0); }}
+              >
+                <div className="text-xs font-semibold text-gray-600 border-b border-gray-100 pb-1 flex justify-between items-center">
+                  <span>Insert Table</span>
+                  <span className="text-blue-600 font-mono">
+                    {hoveredRows > 0 && hoveredCols > 0 ? `${hoveredRows} x ${hoveredCols}` : 'Select Grid'}
+                  </span>
+                </div>
+                
+                {/* 8x8 Grid */}
+                <div className="grid grid-cols-8 gap-1 p-1 bg-gray-50 border border-gray-200 rounded">
+                  {Array.from({ length: 8 }).map((_, rIdx) => (
+                    Array.from({ length: 8 }).map((_, cIdx) => {
+                      const rowNum = rIdx + 1;
+                      const colNum = cIdx + 1;
+                      const isHighlighted = rowNum <= hoveredRows && colNum <= hoveredCols;
+
+                      return (
+                        <button
+                          key={`${rIdx}-${cIdx}`}
+                          type="button"
+                          onMouseEnter={() => {
+                            setHoveredRows(rowNum);
+                            setHoveredCols(colNum);
+                          }}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            insertTable(rowNum, colNum);
+                          }}
+                          className={`w-5 h-5 rounded-sm border cursor-pointer transition-colors p-0 ${
+                            isHighlighted 
+                              ? 'bg-blue-500 border-blue-600' 
+                              : 'bg-white border-gray-300 hover:border-blue-400'
+                          }`}
+                          title={`${rowNum} x ${colNum}`}
+                        />
+                      );
+                    })
+                  ))}
+                </div>
+                <div className="text-[11px] text-gray-400 text-center">
+                  Click to insert grid
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Print / Save */}
         <div className="flex-1 flex justify-end">
           <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm">
@@ -1079,8 +1608,23 @@ const CustomEditorPage = () => {
           onBlur={() => setIsHeaderActive(false)}
           onKeyUp={updateActiveStates}
           onKeyDown={handleKeyDown}
+          onMouseMove={handleTableMouseMove}
+          onMouseDown={handleTableMouseDown}
           onMouseUp={updateActiveStates}
           onFocus={updateActiveStates}
+          onDragOver={(e) => {
+            if (draggedTableRef.current) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              updateDropIndicator(e.clientX, e.clientY);
+            }
+          }}
+          onDrop={(e) => {
+            if (draggedTableRef.current) {
+              e.preventDefault();
+              executeTableDrop(draggedTableRef.current);
+            }
+          }}
           className={`w-full max-w-full break-words [word-break:break-word] min-h-[100px] px-12 pt-12 pb-4 outline-none text-gray-500 text-sm transition-all ${isHeaderActive ? 'border-b-2 border-dashed border-gray-300 bg-gray-50 ring-2 ring-blue-100' : 'cursor-default hover:bg-gray-50/50 print:border-none print:bg-transparent'}`}
           title="Triple-click to edit Header"
         >
@@ -1093,10 +1637,25 @@ const CustomEditorPage = () => {
           suppressContentEditableWarning
           onKeyUp={updateActiveStates}
           onKeyDown={handleKeyDown}
+          onMouseMove={handleTableMouseMove}
+          onMouseDown={handleTableMouseDown}
           onMouseUp={updateActiveStates}
           onFocus={updateActiveStates}
           onClick={handleEditorCanvasClick}
           onDoubleClick={handleEditorCanvasClick}
+          onDragOver={(e) => {
+            if (draggedTableRef.current) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              updateDropIndicator(e.clientX, e.clientY);
+            }
+          }}
+          onDrop={(e) => {
+            if (draggedTableRef.current) {
+              e.preventDefault();
+              executeTableDrop(draggedTableRef.current);
+            }
+          }}
           className="w-full flex-1 px-12 py-4 outline-none prose max-w-none text-gray-800 text-left font-normal"
         >
           <p><br /></p>
@@ -1116,8 +1675,23 @@ const CustomEditorPage = () => {
           onBlur={() => setIsFooterActive(false)}
           onKeyUp={updateActiveStates}
           onKeyDown={handleKeyDown}
+          onMouseMove={handleTableMouseMove}
+          onMouseDown={handleTableMouseDown}
           onMouseUp={updateActiveStates}
           onFocus={updateActiveStates}
+          onDragOver={(e) => {
+            if (draggedTableRef.current) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              updateDropIndicator(e.clientX, e.clientY);
+            }
+          }}
+          onDrop={(e) => {
+            if (draggedTableRef.current) {
+              e.preventDefault();
+              executeTableDrop(draggedTableRef.current);
+            }
+          }}
           className={`w-full max-w-full break-words [word-break:break-word] min-h-[100px] px-12 pb-12 pt-4 outline-none text-gray-500 text-sm transition-all ${isFooterActive ? 'border-t-2 border-dashed border-gray-300 bg-gray-50 ring-2 ring-blue-100' : 'cursor-default hover:bg-gray-50/50 print:border-none print:bg-transparent'}`}
           title="Triple-click to edit Footer"
         >
