@@ -44,6 +44,8 @@ const CustomEditorPage = () => {
   const [isHighlightColorDropdownOpen, setIsHighlightColorDropdownOpen] = useState(false);
   const [activeShadingColor, setActiveShadingColor] = useState('transparent');
   const [isShadingDropdownOpen, setIsShadingDropdownOpen] = useState(false);
+  const [activeBorder, setActiveBorder] = useState('none');
+  const [isBorderDropdownOpen, setIsBorderDropdownOpen] = useState(false);
 
   const [isHeaderActive, setIsHeaderActive] = useState(false);
   const [isFooterActive, setIsFooterActive] = useState(false);
@@ -61,7 +63,122 @@ const CustomEditorPage = () => {
     updateActiveStates();
   }, []);
 
+  const handleEditorCanvasClick = (e) => {
+    let activeEditor = editorRef.current;
+    if (!activeEditor) return;
+
+    if (e.target === activeEditor) {
+      const children = Array.from(activeEditor.children);
+      const lastChild = children[children.length - 1];
+
+      if (lastChild) {
+        const hasShadingOrBorder = lastChild.style.backgroundColor || 
+                                   lastChild.style.border || 
+                                   lastChild.style.borderTop || 
+                                   lastChild.style.borderBottom || 
+                                   lastChild.style.borderLeft || 
+                                   lastChild.style.borderRight;
+
+        const rect = lastChild.getBoundingClientRect();
+        if (e.clientY > rect.bottom - 5 || hasShadingOrBorder) {
+          let targetP = null;
+          if (!hasShadingOrBorder && lastChild.textContent.trim() === '') {
+            targetP = lastChild;
+          } else {
+            targetP = document.createElement('p');
+            targetP.innerHTML = '<br>';
+            activeEditor.appendChild(targetP);
+          }
+
+          const selection = window.getSelection();
+          const range = document.createRange();
+          range.setStart(targetP, 0);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          updateActiveStates();
+        }
+      }
+    }
+  };
+
   const handleKeyDown = (e) => {
+    // 1. ESCAPE KEY: Immediately break out of a shaded or bordered box into a new clean paragraph below
+    if (e.key === 'Escape') {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
+
+      const range = selection.getRangeAt(0);
+      let node = range.startContainer;
+      let activeEditor = isHeaderActive ? headerRef.current : isFooterActive ? footerRef.current : editorRef.current;
+      
+      let blockNode = node;
+      while (blockNode && blockNode !== activeEditor && !['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI'].includes(blockNode.nodeName)) {
+        blockNode = blockNode.parentNode;
+      }
+
+      if (blockNode && blockNode !== activeEditor) {
+        e.preventDefault();
+        const cleanP = document.createElement('p');
+        cleanP.innerHTML = '<br>';
+        
+        if (blockNode.nextSibling) {
+          blockNode.parentNode.insertBefore(cleanP, blockNode.nextSibling);
+        } else {
+          blockNode.parentNode.appendChild(cleanP);
+        }
+
+        const newRange = document.createRange();
+        newRange.setStart(cleanP, 0);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        updateActiveStates();
+        return;
+      }
+    }
+
+    // 2. ENTER KEY: If on an empty line inside a shaded/bordered box (e.g. user pressed Enter twice), clear box styles from this line
+    if (e.key === 'Enter') {
+      const selection = window.getSelection();
+      if (selection && selection.isCollapsed && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let node = range.startContainer;
+        let activeEditor = isHeaderActive ? headerRef.current : isFooterActive ? footerRef.current : editorRef.current;
+
+        let blockNode = node;
+        while (blockNode && blockNode !== activeEditor && !['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI'].includes(blockNode.nodeName)) {
+          blockNode = blockNode.parentNode;
+        }
+
+        if (blockNode && blockNode !== activeEditor) {
+          const hasShadingOrBorder = blockNode.style.backgroundColor || 
+                                     blockNode.style.border || 
+                                     blockNode.style.borderTop || 
+                                     blockNode.style.borderBottom || 
+                                     blockNode.style.borderLeft || 
+                                     blockNode.style.borderRight;
+
+          if (hasShadingOrBorder) {
+            const rawText = blockNode.textContent.replace(/[\u200B\u00A0\s]/g, '');
+            if (rawText === '') {
+              e.preventDefault();
+              blockNode.removeAttribute('style');
+              blockNode.innerHTML = '<br>';
+
+              const newRange = document.createRange();
+              newRange.setStart(blockNode, 0);
+              newRange.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+              updateActiveStates();
+              return;
+            }
+          }
+        }
+      }
+    }
+
     if (e.key === ' ' || e.code === 'Space') {
       const selection = window.getSelection();
       if (!selection || !selection.isCollapsed || selection.rangeCount === 0) return;
@@ -182,8 +299,22 @@ const CustomEditorPage = () => {
       }
       if (blockNode && blockNode !== activeEditor) {
         setActiveShadingColor(blockNode.style.backgroundColor || 'transparent');
+        
+        const b = blockNode.style.border;
+        const bt = blockNode.style.borderTop;
+        const bb = blockNode.style.borderBottom;
+        const bl = blockNode.style.borderLeft;
+        const br = blockNode.style.borderRight;
+
+        if (b && b !== 'none') setActiveBorder('all');
+        else if (bb && bb !== 'none') setActiveBorder('bottom');
+        else if (bt && bt !== 'none') setActiveBorder('top');
+        else if (bl && bl !== 'none') setActiveBorder('left');
+        else if (br && br !== 'none') setActiveBorder('right');
+        else setActiveBorder('none');
       } else {
         setActiveShadingColor('transparent');
+        setActiveBorder('none');
       }
     }
     
@@ -371,6 +502,101 @@ const CustomEditorPage = () => {
     if (activeEditor) activeEditor.focus();
   };
 
+  const executeBorderCommand = (borderType) => {
+    const selection = window.getSelection();
+    if (savedSelection.current) {
+      selection.removeAllRanges();
+      selection.addRange(savedSelection.current);
+    }
+    
+    let activeEditor = null;
+    if (isHeaderActive && headerRef.current) activeEditor = headerRef.current;
+    else if (isFooterActive && footerRef.current) activeEditor = footerRef.current;
+    else if (editorRef.current) activeEditor = editorRef.current;
+
+    if (activeEditor && selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      let commonAncestor = range.commonAncestorContainer;
+      if (commonAncestor.nodeType === 3) commonAncestor = commonAncestor.parentNode;
+
+      let blocksToBorder = new Set();
+      const blockTags = ['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI'];
+
+      if (commonAncestor === activeEditor || commonAncestor.nodeName === 'UL' || commonAncestor.nodeName === 'OL') {
+        Array.from(commonAncestor.children).forEach(child => {
+          if (selection.containsNode(child, true)) {
+            if (blockTags.includes(child.nodeName)) {
+              blocksToBorder.add(child);
+            }
+          }
+        });
+      } else {
+        let blockNode = commonAncestor;
+        while (blockNode && blockNode !== activeEditor && !blockTags.includes(blockNode.nodeName)) {
+          blockNode = blockNode.parentNode;
+        }
+        if (blockNode && blockNode !== activeEditor) {
+          blocksToBorder.add(blockNode);
+        }
+      }
+
+      if (blocksToBorder.size === 0) {
+        document.execCommand('formatBlock', false, 'DIV');
+        
+        const newRange = window.getSelection().getRangeAt(0);
+        let newAncestor = newRange.commonAncestorContainer;
+        if (newAncestor.nodeType === 3) newAncestor = newAncestor.parentNode;
+        
+        if (newAncestor === activeEditor) {
+           Array.from(activeEditor.children).forEach(child => {
+             if (window.getSelection().containsNode(child, true) && blockTags.includes(child.nodeName)) {
+               blocksToBorder.add(child);
+             }
+           });
+        } else {
+          let newBlockNode = newAncestor;
+          while (newBlockNode && newBlockNode !== activeEditor && !blockTags.includes(newBlockNode.nodeName)) {
+            newBlockNode = newBlockNode.parentNode;
+          }
+          if (newBlockNode && newBlockNode !== activeEditor) {
+            blocksToBorder.add(newBlockNode);
+          }
+        }
+      }
+
+      blocksToBorder.forEach(block => {
+        block.style.border = 'none';
+        block.style.borderTop = 'none';
+        block.style.borderBottom = 'none';
+        block.style.borderLeft = 'none';
+        block.style.borderRight = 'none';
+
+        if (borderType === 'bottom') {
+          block.style.borderBottom = '2px solid #1f2937';
+          if (!block.style.paddingBottom) block.style.paddingBottom = '3px';
+        } else if (borderType === 'top') {
+          block.style.borderTop = '2px solid #1f2937';
+          if (!block.style.paddingTop) block.style.paddingTop = '3px';
+        } else if (borderType === 'left') {
+          block.style.borderLeft = '3px solid #1f2937';
+          if (!block.style.paddingLeft) block.style.paddingLeft = '8px';
+        } else if (borderType === 'right') {
+          block.style.borderRight = '3px solid #1f2937';
+          if (!block.style.paddingRight) block.style.paddingRight = '8px';
+        } else if (borderType === 'all') {
+          block.style.border = '1.5px solid #1f2937';
+          if (!block.style.padding) block.style.padding = '4px 8px';
+        } else if (borderType === 'none') {
+          block.style.border = 'none';
+        }
+      });
+    }
+
+    updateActiveStates();
+    setIsBorderDropdownOpen(false);
+    if (activeEditor) activeEditor.focus();
+  };
+
   const executeCommand = (command, value = null) => {
     const selection = window.getSelection();
     if (savedSelection.current) {
@@ -410,6 +636,7 @@ const CustomEditorPage = () => {
             setIsFontColorDropdownOpen(false);
             setIsHighlightColorDropdownOpen(false);
             setIsShadingDropdownOpen(false);
+            setIsBorderDropdownOpen(false);
           }
         }}
       >
@@ -612,6 +839,7 @@ const CustomEditorPage = () => {
                 setIsFontColorDropdownOpen(false);
                 setIsFontDropdownOpen(false);
                 setIsFontSizeDropdownOpen(false);
+                setIsBorderDropdownOpen(false);
                 setActiveListDropdown(null);
               }} 
               className="p-1 px-2 rounded flex flex-col items-center justify-center w-10 h-8 bg-gray-50 border border-transparent hover:bg-gray-100"
@@ -645,6 +873,98 @@ const CustomEditorPage = () => {
                     />
                   ))}
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Paragraph Borders */}
+          <div className="relative flex items-center ml-1">
+            <button 
+              onMouseDown={(e) => { 
+                e.preventDefault(); 
+                setIsBorderDropdownOpen(!isBorderDropdownOpen); 
+                setIsShadingDropdownOpen(false); 
+                setIsHighlightColorDropdownOpen(false); 
+                setIsFontColorDropdownOpen(false);
+                setIsFontDropdownOpen(false);
+                setIsFontSizeDropdownOpen(false);
+                setActiveListDropdown(null);
+              }} 
+              className={`p-1 px-2 rounded flex items-center justify-center gap-1 h-8 bg-gray-50 border border-transparent hover:bg-gray-100 ${activeBorder !== 'none' ? 'bg-blue-100 text-blue-700' : 'text-gray-700'}`}
+              title="Borders"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="2.5" y="2.5" width="11" height="11" stroke="#4B5563" strokeDasharray={activeBorder === 'none' ? '2 2' : 'none'} strokeWidth="1.5"/>
+                {activeBorder === 'bottom' && <path d="M2.5 13.5H13.5" stroke="#1D4ED8" strokeWidth="2.5"/>}
+                {activeBorder === 'top' && <path d="M2.5 2.5H13.5" stroke="#1D4ED8" strokeWidth="2.5"/>}
+                {activeBorder === 'left' && <path d="M2.5 2.5V13.5" stroke="#1D4ED8" strokeWidth="2.5"/>}
+                {activeBorder === 'right' && <path d="M13.5 2.5V13.5" stroke="#1D4ED8" strokeWidth="2.5"/>}
+                {activeBorder === 'all' && <rect x="2.5" y="2.5" width="11" height="11" stroke="#1D4ED8" strokeWidth="2"/>}
+              </svg>
+              <FiChevronDown size={12} className="text-gray-500" />
+            </button>
+
+            {isBorderDropdownOpen && (
+              <div className="absolute top-full mt-1 left-0 bg-white shadow-lg border border-gray-200 rounded py-1 z-50 w-44 flex flex-col print:hidden">
+                <button 
+                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('bottom'); }} 
+                  className={`px-3 py-1.5 text-left text-sm hover:bg-blue-50 flex items-center gap-2.5 ${activeBorder === 'bottom' ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="2.5" y="2.5" width="11" height="11" stroke="#9CA3AF" strokeDasharray="2 2" strokeWidth="1"/>
+                    <path d="M2.5 13.5H13.5" stroke="#1F2937" strokeWidth="2"/>
+                  </svg>
+                  Bottom Border
+                </button>
+                <button 
+                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('top'); }} 
+                  className={`px-3 py-1.5 text-left text-sm hover:bg-blue-50 flex items-center gap-2.5 ${activeBorder === 'top' ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="2.5" y="2.5" width="11" height="11" stroke="#9CA3AF" strokeDasharray="2 2" strokeWidth="1"/>
+                    <path d="M2.5 2.5H13.5" stroke="#1F2937" strokeWidth="2"/>
+                  </svg>
+                  Top Border
+                </button>
+                <button 
+                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('left'); }} 
+                  className={`px-3 py-1.5 text-left text-sm hover:bg-blue-50 flex items-center gap-2.5 ${activeBorder === 'left' ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="2.5" y="2.5" width="11" height="11" stroke="#9CA3AF" strokeDasharray="2 2" strokeWidth="1"/>
+                    <path d="M2.5 2.5V13.5" stroke="#1F2937" strokeWidth="2"/>
+                  </svg>
+                  Left Border
+                </button>
+                <button 
+                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('right'); }} 
+                  className={`px-3 py-1.5 text-left text-sm hover:bg-blue-50 flex items-center gap-2.5 ${activeBorder === 'right' ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="2.5" y="2.5" width="11" height="11" stroke="#9CA3AF" strokeDasharray="2 2" strokeWidth="1"/>
+                    <path d="M13.5 2.5V13.5" stroke="#1F2937" strokeWidth="2"/>
+                  </svg>
+                  Right Border
+                </button>
+                <button 
+                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('all'); }} 
+                  className={`px-3 py-1.5 text-left text-sm hover:bg-blue-50 flex items-center gap-2.5 ${activeBorder === 'all' ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="2.5" y="2.5" width="11" height="11" stroke="#1F2937" strokeWidth="2"/>
+                  </svg>
+                  Box / All Borders
+                </button>
+                <div className="my-1 border-t border-gray-200"></div>
+                <button 
+                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('none'); }} 
+                  className={`px-3 py-1.5 text-left text-sm hover:bg-blue-50 flex items-center gap-2.5 ${activeBorder === 'none' ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="2.5" y="2.5" width="11" height="11" stroke="#9CA3AF" strokeDasharray="2 2" strokeWidth="1"/>
+                  </svg>
+                  No Border
+                </button>
               </div>
             )}
           </div>
@@ -775,6 +1095,8 @@ const CustomEditorPage = () => {
           onKeyDown={handleKeyDown}
           onMouseUp={updateActiveStates}
           onFocus={updateActiveStates}
+          onClick={handleEditorCanvasClick}
+          onDoubleClick={handleEditorCanvasClick}
           className="w-full flex-1 px-12 py-4 outline-none prose max-w-none text-gray-800 text-left font-normal"
         >
           <p><br /></p>
