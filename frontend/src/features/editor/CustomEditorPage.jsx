@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { FiBold, FiItalic, FiUnderline, FiAlignLeft, FiAlignCenter, FiAlignRight, FiList, FiChevronDown, FiType, FiEdit2, FiDroplet, FiGrid, FiMove, FiImage } from 'react-icons/fi';
+import { FiBold, FiItalic, FiUnderline, FiAlignLeft, FiAlignCenter, FiAlignRight, FiList, FiChevronDown, FiType, FiEdit2, FiDroplet, FiGrid, FiMove, FiImage, FiMinus } from 'react-icons/fi';
 
 const COLORS = [
   '#000000', '#434343', '#666666', '#999999', '#B7B7B7', '#CCCCCC', '#D9D9D9', '#EFEFEF', '#F3F3F3', '#FFFFFF',
@@ -48,10 +48,15 @@ const CustomEditorPage = () => {
   const [activeBorder, setActiveBorder] = useState('none');
   const [isBorderDropdownOpen, setIsBorderDropdownOpen] = useState(false);
   const [isTableDropdownOpen, setIsTableDropdownOpen] = useState(false);
+  const [isDividerDropdownOpen, setIsDividerDropdownOpen] = useState(false);
+  const [activeLineColor, setActiveLineColor] = useState('#374151');
+  const [activeLineThickness, setActiveLineThickness] = useState('2px');
+  const [activeLineStyle, setActiveLineStyle] = useState('solid');
   const [hoveredRows, setHoveredRows] = useState(0);
   const [hoveredCols, setHoveredCols] = useState(0);
   const [activeTablePos, setActiveTablePos] = useState(null);
   const [activeImgPos, setActiveImgPos] = useState(null);
+  const [activeLinePos, setActiveLinePos] = useState(null);
 
   const [isHeaderActive, setIsHeaderActive] = useState(false);
   const [isFooterActive, setIsFooterActive] = useState(false);
@@ -224,6 +229,28 @@ const CustomEditorPage = () => {
       setActiveImgPos(null);
     }
 
+    const dividerEl = (target && target.closest) ? (target.closest('[data-divider]') || target.closest('.editor-divider-v') || target.closest('.editor-divider-h') || (target.nodeName === 'HR' ? target : null)) : null;
+
+    if (dividerEl) {
+      const rect = dividerEl.getBoundingClientRect();
+      const isVertical = dividerEl.getAttribute('data-divider') === 'vertical' || dividerEl.classList.contains('editor-divider-v') || (rect.height > rect.width && rect.width < 30);
+      setActiveLinePos((prev) => {
+        if (prev && prev.isPinned) return prev;
+        return {
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height,
+          isVertical: isVertical,
+          lineEl: dividerEl,
+          isPinned: false
+        };
+      });
+      return;
+    } else if (activeLinePos && !activeLinePos.isPinned && !target.closest('.line-control-overlay')) {
+      setActiveLinePos(null);
+    }
+
     handleTableMouseMove(e);
   };
 
@@ -267,6 +294,168 @@ const CustomEditorPage = () => {
 
   const handleCanvasMouseDown = (e) => {
     let target = e.target;
+
+    const dividerEl = (target && target.closest) ? (target.closest('[data-divider]') || target.closest('.editor-divider-v') || target.closest('.editor-divider-h') || (target.nodeName === 'HR' ? target : null)) : null;
+
+    if (dividerEl) {
+      const line = dividerEl;
+      const rect = line.getBoundingClientRect();
+      const isVertical = line.getAttribute('data-divider') === 'vertical' || line.classList.contains('editor-divider-v') || (rect.height > rect.width && rect.width < 30);
+
+      setActiveLinePos({
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+        isVertical: isVertical,
+        lineEl: line,
+        isPinned: true
+      });
+
+      const container = line.closest('.editor-column-container');
+
+      if (isVertical && container) {
+        // Unrestricted vertical line column boundary drag & vertical page repositioning
+        const containerRect = container.getBoundingClientRect();
+        const leftCol = container.querySelector('.editor-column-left');
+        const rightCol = container.querySelector('.editor-column-right');
+        const startX = e.clientX;
+        const startY = e.clientY;
+
+        resizingRef.current = { type: 'col-drag' };
+        let isVerticalRepositioning = false;
+
+        const handleColMouseMove = (moveEvent) => {
+          moveEvent.preventDefault();
+          const deltaX = moveEvent.clientX - startX;
+          const deltaY = moveEvent.clientY - startY;
+
+          // If dragging significantly in Y direction (vertical drag across document page)
+          if (Math.abs(deltaY) > 16 && Math.abs(deltaY) > Math.abs(deltaX)) {
+            isVerticalRepositioning = true;
+            updateDropIndicator(moveEvent.clientX, moveEvent.clientY);
+            return;
+          }
+
+          if (isVerticalRepositioning) {
+            updateDropIndicator(moveEvent.clientX, moveEvent.clientY);
+            return;
+          }
+
+          // Horizontal dragging: scale column percentage dynamically across the full canvas width (2% to 98%)
+          const relativeX = moveEvent.clientX - containerRect.left;
+          const pct = Math.min(98, Math.max(2, (relativeX / containerRect.width) * 100));
+
+          if (leftCol && rightCol) {
+            leftCol.style.flex = `0 0 ${pct}%`;
+            leftCol.style.width = `${pct}%`;
+            leftCol.style.maxWidth = `${pct}%`;
+
+            rightCol.style.flex = `0 0 ${100 - pct}%`;
+            rightCol.style.width = `${100 - pct}%`;
+            rightCol.style.maxWidth = `${100 - pct}%`;
+          }
+
+          const updatedRect = line.getBoundingClientRect();
+          setActiveLinePos({
+            top: updatedRect.top,
+            left: updatedRect.left,
+            width: updatedRect.width,
+            height: updatedRect.height,
+            isVertical: true,
+            lineEl: line,
+            isPinned: true
+          });
+        };
+
+        const handleColMouseUp = () => {
+          if (isVerticalRepositioning) {
+            executeNodeDrop(container);
+          }
+          resizingRef.current = null;
+          setDropIndicatorPos(null);
+          window.removeEventListener('mousemove', handleColMouseMove);
+          window.removeEventListener('mouseup', handleColMouseUp);
+        };
+
+        window.addEventListener('mousemove', handleColMouseMove);
+        window.addEventListener('mouseup', handleColMouseUp);
+      } else {
+        const editorCanvas = editorRef.current?.parentNode;
+        if (editorCanvas) {
+          const editorRect = editorCanvas.getBoundingClientRect();
+          const lineRect = line.getBoundingClientRect();
+          const startX = e.clientX;
+          const startY = e.clientY;
+
+          let initialLeft = line.offsetLeft;
+          let initialTop = line.offsetTop;
+
+          if (window.getComputedStyle(line).position !== 'absolute') {
+            initialLeft = lineRect.left - editorRect.left;
+            initialTop = lineRect.top - editorRect.top;
+          }
+
+          let isDraggingLine = false;
+
+          const handleLineMouseMove = (moveEvent) => {
+            const deltaX = moveEvent.clientX - startX;
+            const deltaY = moveEvent.clientY - startY;
+
+            if (!isDraggingLine && (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4)) {
+              isDraggingLine = true;
+              line.style.position = 'absolute';
+              line.style.zIndex = '20';
+              line.style.margin = '0';
+              resizingRef.current = { type: 'free-drag-line', node: line };
+            }
+
+            if (isDraggingLine) {
+              moveEvent.preventDefault();
+              const newLeft = initialLeft + deltaX;
+              const newTop = initialTop + deltaY;
+
+              line.style.left = `${newLeft}px`;
+              line.style.top = `${newTop}px`;
+
+              const updatedRect = line.getBoundingClientRect();
+              const isVert = line.getAttribute('data-divider') === 'vertical' || line.classList.contains('editor-divider-v') || (updatedRect.height > updatedRect.width && updatedRect.width < 30);
+              setActiveLinePos({
+                top: updatedRect.top,
+                left: updatedRect.left,
+                width: updatedRect.width,
+                height: updatedRect.height,
+                isVertical: isVert,
+                lineEl: line,
+                isPinned: true
+              });
+            }
+          };
+
+          const handleLineMouseUp = () => {
+            const updatedRect = line.getBoundingClientRect();
+            const isVert = line.getAttribute('data-divider') === 'vertical' || line.classList.contains('editor-divider-v') || (updatedRect.height > updatedRect.width && updatedRect.width < 30);
+            setActiveLinePos({
+              top: updatedRect.top,
+              left: updatedRect.left,
+              width: updatedRect.width,
+              height: updatedRect.height,
+              isVertical: isVert,
+              lineEl: line,
+              isPinned: true
+            });
+            resizingRef.current = null;
+            window.removeEventListener('mousemove', handleLineMouseMove);
+            window.removeEventListener('mouseup', handleLineMouseUp);
+          };
+
+          window.addEventListener('mousemove', handleLineMouseMove);
+          window.addEventListener('mouseup', handleLineMouseUp);
+        }
+      }
+    } else if (activeLinePos && !target.closest('.line-control-overlay')) {
+      setActiveLinePos(null);
+    }
 
     if (target && target.nodeName === 'IMG') {
       const img = target;
@@ -514,6 +703,26 @@ const CustomEditorPage = () => {
           updateActiveStates();
         }
       }
+    }
+  };
+
+  const handleCanvasDoubleClick = (e) => {
+    let target = e.target;
+    const dividerEl = (target && target.closest) ? (target.closest('[data-divider]') || target.closest('.editor-divider-v') || target.closest('.editor-divider-h') || (target.nodeName === 'HR' ? target : null)) : null;
+
+    if (dividerEl) {
+      e.stopPropagation();
+      const rect = dividerEl.getBoundingClientRect();
+      const isVertical = dividerEl.getAttribute('data-divider') === 'vertical' || dividerEl.classList.contains('editor-divider-v') || (rect.height > rect.width && rect.width < 30);
+      setActiveLinePos({
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+        isVertical: isVertical,
+        lineEl: dividerEl,
+        isPinned: true
+      });
     }
   };
 
@@ -1107,6 +1316,102 @@ const CustomEditorPage = () => {
     updateActiveStates();
   };
 
+  const convertLineToVertical = (line) => {
+    const parentContainer = line.closest('.editor-column-container');
+    if (!parentContainer) {
+      const container = document.createElement('div');
+      container.className = 'editor-column-container';
+      container.setAttribute('data-divider-container', 'true');
+      container.style.cssText = 'display: flex; flex-direction: row; align-items: stretch; width: 100%; margin: 16px 0; min-height: 80px; clear: both;';
+
+      const leftCol = document.createElement('div');
+      leftCol.className = 'editor-column-left';
+      leftCol.style.cssText = 'flex: 0 0 50%; width: 50%; max-width: 50%; min-width: 0; padding-right: 12px; outline: none; word-break: break-word; overflow-wrap: break-word; text-align: left; box-sizing: border-box;';
+      leftCol.innerHTML = '<p><br></p>';
+
+      const vLine = document.createElement('div');
+      vLine.className = 'editor-divider-v';
+      vLine.setAttribute('data-divider', 'vertical');
+      vLine.setAttribute('contenteditable', 'false');
+      vLine.style.cssText = 'flex: 0 0 auto; width: 3px; min-height: 80px; background-color: #374151; margin: 0 8px; cursor: col-resize; user-select: none; position: relative; align-self: stretch;';
+
+      const rightCol = document.createElement('div');
+      rightCol.className = 'editor-column-right';
+      rightCol.style.cssText = 'flex: 0 0 50%; width: 50%; max-width: 50%; min-width: 0; padding-left: 12px; outline: none; word-break: break-word; overflow-wrap: break-word; text-align: left; box-sizing: border-box;';
+      rightCol.innerHTML = '<p><br></p>';
+
+      container.appendChild(leftCol);
+      container.appendChild(vLine);
+      container.appendChild(rightCol);
+
+      if (line.parentNode) {
+        line.parentNode.replaceChild(container, line);
+      }
+      return vLine;
+    }
+    return line;
+  };
+
+  const convertLineToHorizontal = (line) => {
+    const parentContainer = line.closest('.editor-column-container');
+    const hr = document.createElement('hr');
+    hr.className = 'editor-divider-h';
+    hr.setAttribute('data-divider', 'horizontal');
+    hr.style.cssText = 'border: none; border-top: 3px solid #374151; width: 100%; margin: 16px auto; cursor: pointer; clear: both;';
+
+    if (parentContainer && parentContainer.parentNode) {
+      parentContainer.parentNode.replaceChild(hr, parentContainer);
+    } else if (line.parentNode) {
+      line.parentNode.replaceChild(hr, line);
+    }
+    return hr;
+  };
+
+  const insertDividerLine = (lineType = 'horizontal', options = {}) => {
+    const color = options.color || activeLineColor || '#374151';
+    const thickness = options.thickness || activeLineThickness || '2px';
+    const style = options.style || activeLineStyle || 'solid';
+
+    const selection = window.getSelection();
+    if (savedSelection.current) {
+      selection.removeAllRanges();
+      selection.addRange(savedSelection.current);
+    }
+
+    let activeEditor = null;
+    if (isHeaderActive && headerRef.current) activeEditor = headerRef.current;
+    else if (isFooterActive && footerRef.current) activeEditor = footerRef.current;
+    else if (editorRef.current) activeEditor = editorRef.current;
+
+    if (activeEditor) {
+      activeEditor.focus();
+
+      let lineHTML = '';
+      if (lineType === 'horizontal') {
+        if (style === 'gradient') {
+          lineHTML = `<hr class="editor-divider-h" data-divider="horizontal" style="border: none; height: ${thickness === '1px' ? '3px' : thickness}; background: linear-gradient(to right, ${color}, #3b82f6, #ec4899); width: 100%; margin: 16px auto; cursor: pointer; clear: both;" /><p><br></p>`;
+        } else if (style === 'double') {
+          lineHTML = `<hr class="editor-divider-h" data-divider="horizontal" style="border: none; border-top: 4px double ${color}; width: 100%; margin: 16px auto; cursor: pointer; clear: both;" /><p><br></p>`;
+        } else {
+          lineHTML = `<hr class="editor-divider-h" data-divider="horizontal" style="border: none; border-top: ${thickness} ${style} ${color}; width: 100%; margin: 16px auto; cursor: pointer; clear: both;" /><p><br></p>`;
+        }
+      } else if (lineType === 'vertical') {
+        const height = options.height || '80px';
+        const vWidth = thickness || '3px';
+        const vStyle = style === 'dashed'
+          ? `border-left: ${vWidth} dashed ${color}; width: 0px;`
+          : `background-color: ${color}; width: ${vWidth};`;
+
+        lineHTML = `<div class="editor-column-container" data-divider-container="true" style="display: flex; flex-direction: row; align-items: stretch; width: 100%; margin: 16px 0; min-height: 80px; clear: both;"><div class="editor-column-left" style="flex: 0 0 50%; width: 50%; max-width: 50%; min-width: 0; padding-right: 12px; outline: none; word-break: break-word; overflow-wrap: break-word; text-align: left; box-sizing: border-box;"><p><br></p></div><div class="editor-divider-v" data-divider="vertical" contenteditable="false" style="flex: 0 0 auto; ${vStyle} min-height: ${height}; margin: 0 8px; cursor: col-resize; user-select: none; position: relative; align-self: stretch;"></div><div class="editor-column-right" style="flex: 0 0 50%; width: 50%; max-width: 50%; min-width: 0; padding-left: 12px; outline: none; word-break: break-word; overflow-wrap: break-word; text-align: left; box-sizing: border-box;"><p><br></p></div></div><p><br></p>`;
+      }
+
+      document.execCommand('insertHTML', false, lineHTML);
+    }
+
+    setIsDividerDropdownOpen(false);
+    updateActiveStates();
+  };
+
   const executeCommand = (command, value = null) => {
     const selection = window.getSelection();
     if (savedSelection.current) {
@@ -1141,6 +1446,11 @@ const CustomEditorPage = () => {
         .prose img { max-width: 100%; height: auto; display: block; margin: 16px auto; clear: both; }
         .prose img[style*="float: left"] { display: inline-block !important; float: left !important; clear: none !important; margin: 0 16px 8px 0 !important; }
         .prose img[style*="float: right"] { display: inline-block !important; float: right !important; clear: none !important; margin: 0 0 8px 16px !important; }
+        .prose hr, .editor-divider-h, .editor-divider-v, [data-divider] { cursor: pointer !important; transition: outline 0.15s ease-in-out; }
+        .prose hr:hover, .editor-divider-h:hover, .editor-divider-v:hover, [data-divider]:hover { outline: 2px dashed #2563eb !important; outline-offset: 3px; cursor: pointer !important; }
+        .editor-column-container { display: flex !important; flex-direction: row !important; align-items: stretch !important; width: 100% !important; box-sizing: border-box !important; clear: both !important; margin: 16px 0 !important; }
+        .editor-column-left, .editor-column-right { min-width: 0 !important; word-break: break-word !important; overflow-wrap: break-word !important; box-sizing: border-box !important; }
+        .editor-column-left p, .editor-column-right p { word-break: break-word !important; overflow-wrap: break-word !important; margin: 4px 0 !important; }
       `}</style>
 
       {/* Glowing Blue Drop Indicator Line (Word-style Insertion Bar) */}
@@ -1503,6 +1813,623 @@ const CustomEditorPage = () => {
           />
         </div>
       )}
+
+      {/* Floating Line Controls & Resize Overlay */}
+      {activeLinePos && (
+        <div
+          className="line-control-overlay"
+          style={{
+            position: 'fixed',
+            top: `${activeLinePos.top - 4}px`,
+            left: `${activeLinePos.left - 4}px`,
+            width: `${Math.max(activeLinePos.width + 8, 16)}px`,
+            height: `${Math.max(activeLinePos.height + 8, 16)}px`,
+            border: '2px dashed #2563EB',
+            pointerEvents: 'none',
+            zIndex: 60,
+            borderRadius: '3px'
+          }}
+        >
+          {/* Floating Line Option Toolbar */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '-38px',
+              left: '0px',
+              pointerEvents: 'auto'
+            }}
+            className="flex items-center gap-1.5 bg-white border border-gray-200 shadow-lg rounded-md px-2 py-1 z-70 print:hidden text-xs"
+          >
+            <span className="font-semibold text-gray-600 mr-0.5">
+              {activeLinePos.isVertical ? 'Vertical Line' : 'Horizontal Line'}
+            </span>
+
+            {/* Orientation Toggle Button (Horiz <-> Vert) */}
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault();
+                if (activeLinePos?.lineEl) {
+                  const line = activeLinePos.lineEl;
+                  const currentlyVert = activeLinePos.isVertical;
+
+                  if (currentlyVert) {
+                    const hr = convertLineToHorizontal(line);
+                    const newRect = hr.getBoundingClientRect();
+                    setActiveLinePos({
+                      top: newRect.top,
+                      left: newRect.left,
+                      width: newRect.width,
+                      height: newRect.height,
+                      isVertical: false,
+                      lineEl: hr,
+                      isPinned: true
+                    });
+                  } else {
+                    const vLine = convertLineToVertical(line);
+                    const newRect = vLine.getBoundingClientRect();
+                    setActiveLinePos({
+                      top: newRect.top,
+                      left: newRect.left,
+                      width: newRect.width,
+                      height: newRect.height,
+                      isVertical: true,
+                      lineEl: vLine,
+                      isPinned: true
+                    });
+                  }
+                }
+              }}
+              className="px-2 py-0.5 bg-blue-100 hover:bg-blue-200 text-blue-700 font-medium rounded text-[11px] flex items-center gap-1"
+              title="Toggle orientation"
+            >
+              <span>{activeLinePos.isVertical ? '↔ Horizontal' : '↕ Vertical'}</span>
+            </button>
+
+            {!activeLinePos.isVertical ? (
+              <>
+                <span className="text-gray-400">|</span>
+                <span className="text-gray-500">Width:</span>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeLinePos.lineEl) {
+                      activeLinePos.lineEl.style.width = '100%';
+                      activeLinePos.lineEl.style.margin = '16px 0';
+                      const rect = activeLinePos.lineEl.getBoundingClientRect();
+                      setActiveLinePos({ ...activeLinePos, top: rect.top, left: rect.left, width: rect.width });
+                    }
+                  }}
+                  className="px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-[11px]"
+                >
+                  100%
+                </button>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeLinePos.lineEl) {
+                      activeLinePos.lineEl.style.width = '50%';
+                      activeLinePos.lineEl.style.margin = '16px auto';
+                      const rect = activeLinePos.lineEl.getBoundingClientRect();
+                      setActiveLinePos({ ...activeLinePos, top: rect.top, left: rect.left, width: rect.width });
+                    }
+                  }}
+                  className="px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-[11px]"
+                >
+                  50%
+                </button>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeLinePos.lineEl) {
+                      activeLinePos.lineEl.style.width = '25%';
+                      activeLinePos.lineEl.style.margin = '16px auto';
+                      const rect = activeLinePos.lineEl.getBoundingClientRect();
+                      setActiveLinePos({ ...activeLinePos, top: rect.top, left: rect.left, width: rect.width });
+                    }
+                  }}
+                  className="px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-[11px]"
+                >
+                  25%
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-gray-400">|</span>
+                <span className="text-gray-500">Height:</span>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeLinePos.lineEl) {
+                      activeLinePos.lineEl.style.height = '40px';
+                      const rect = activeLinePos.lineEl.getBoundingClientRect();
+                      setActiveLinePos({ ...activeLinePos, top: rect.top, left: rect.left, height: rect.height });
+                    }
+                  }}
+                  className="px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-[11px]"
+                >
+                  Short
+                </button>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeLinePos.lineEl) {
+                      activeLinePos.lineEl.style.height = '100px';
+                      const rect = activeLinePos.lineEl.getBoundingClientRect();
+                      setActiveLinePos({ ...activeLinePos, top: rect.top, left: rect.left, height: rect.height });
+                    }
+                  }}
+                  className="px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-[11px]"
+                >
+                  Medium
+                </button>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeLinePos.lineEl) {
+                      activeLinePos.lineEl.style.height = '200px';
+                      const rect = activeLinePos.lineEl.getBoundingClientRect();
+                      setActiveLinePos({ ...activeLinePos, top: rect.top, left: rect.left, height: rect.height });
+                    }
+                  }}
+                  className="px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-[11px]"
+                >
+                  Tall
+                </button>
+                <span className="text-gray-400">|</span>
+                <span className="text-gray-500">Split:</span>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeLinePos.lineEl) {
+                      const line = activeLinePos.lineEl;
+                      const container = line.closest('.editor-column-container');
+                      if (container) {
+                        const leftCol = container.querySelector('.editor-column-left');
+                        const rightCol = container.querySelector('.editor-column-right');
+                        if (leftCol && rightCol) {
+                          leftCol.style.flex = '0 0 30%';
+                          leftCol.style.maxWidth = '30%';
+                          rightCol.style.flex = '0 0 70%';
+                          rightCol.style.maxWidth = '70%';
+                          const rect = line.getBoundingClientRect();
+                          setActiveLinePos({ ...activeLinePos, top: rect.top, left: rect.left });
+                        }
+                      }
+                    }
+                  }}
+                  className="px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-[11px]"
+                >
+                  30/70
+                </button>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeLinePos.lineEl) {
+                      const line = activeLinePos.lineEl;
+                      const container = line.closest('.editor-column-container');
+                      if (container) {
+                        const leftCol = container.querySelector('.editor-column-left');
+                        const rightCol = container.querySelector('.editor-column-right');
+                        if (leftCol && rightCol) {
+                          leftCol.style.flex = '0 0 50%';
+                          leftCol.style.maxWidth = '50%';
+                          rightCol.style.flex = '0 0 50%';
+                          rightCol.style.maxWidth = '50%';
+                          const rect = line.getBoundingClientRect();
+                          setActiveLinePos({ ...activeLinePos, top: rect.top, left: rect.left });
+                        }
+                      }
+                    }
+                  }}
+                  className="px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-[11px]"
+                >
+                  50/50
+                </button>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeLinePos.lineEl) {
+                      const line = activeLinePos.lineEl;
+                      const container = line.closest('.editor-column-container');
+                      if (container) {
+                        const leftCol = container.querySelector('.editor-column-left');
+                        const rightCol = container.querySelector('.editor-column-right');
+                        if (leftCol && rightCol) {
+                          leftCol.style.flex = '0 0 70%';
+                          leftCol.style.maxWidth = '70%';
+                          rightCol.style.flex = '0 0 30%';
+                          rightCol.style.maxWidth = '30%';
+                          const rect = line.getBoundingClientRect();
+                          setActiveLinePos({ ...activeLinePos, top: rect.top, left: rect.left });
+                        }
+                      }
+                    }
+                  }}
+                  className="px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-[11px]"
+                >
+                  70/30
+                </button>
+              </>
+            )}
+
+            <span className="text-gray-400">|</span>
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault();
+                if (activeLinePos.lineEl) {
+                  activeLinePos.lineEl.remove();
+                  setActiveLinePos(null);
+                }
+              }}
+              className="px-1.5 py-0.5 bg-red-100 hover:bg-red-200 text-red-700 rounded font-medium text-[11px]"
+              title="Delete Divider Line"
+            >
+              Delete
+            </button>
+          </div>
+
+          {/* Resize Handles */}
+          {!activeLinePos.isVertical ? (
+            <>
+              {/* Left Resize Handle for Horizontal Line */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '-6px',
+                  transform: 'translateY(-50%)',
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#2563EB',
+                  border: '2px solid white',
+                  borderRadius: '50%',
+                  cursor: 'ew-resize',
+                  pointerEvents: 'auto'
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const line = activeLinePos.lineEl;
+                  const startX = e.clientX;
+                  const startWidth = line.offsetWidth;
+
+                  resizingRef.current = { type: 'line-resize' };
+
+                  const handleMouseMove = (moveEvent) => {
+                    moveEvent.preventDefault();
+                    const deltaX = startX - moveEvent.clientX;
+                    const newWidth = Math.max(30, startWidth + deltaX);
+                    line.style.width = `${newWidth}px`;
+                    if (!line.style.margin || line.style.margin.includes('auto')) {
+                      line.style.margin = '16px auto';
+                    }
+
+                    const newRect = line.getBoundingClientRect();
+                    setActiveLinePos({
+                      top: newRect.top,
+                      left: newRect.left,
+                      width: newRect.width,
+                      height: newRect.height,
+                      isVertical: false,
+                      lineEl: line
+                    });
+                  };
+
+                  const handleMouseUp = () => {
+                    resizingRef.current = null;
+                    window.removeEventListener('mousemove', handleMouseMove);
+                    window.removeEventListener('mouseup', handleMouseUp);
+                  };
+
+                  window.addEventListener('mousemove', handleMouseMove);
+                  window.addEventListener('mouseup', handleMouseUp);
+                }}
+                title="Drag to resize width"
+              />
+
+              {/* Right Resize Handle for Horizontal Line */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  right: '-6px',
+                  transform: 'translateY(-50%)',
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#2563EB',
+                  border: '2px solid white',
+                  borderRadius: '50%',
+                  cursor: 'ew-resize',
+                  pointerEvents: 'auto'
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const line = activeLinePos.lineEl;
+                  const startX = e.clientX;
+                  const startWidth = line.offsetWidth;
+
+                  resizingRef.current = { type: 'line-resize' };
+
+                  const handleMouseMove = (moveEvent) => {
+                    moveEvent.preventDefault();
+                    const deltaX = moveEvent.clientX - startX;
+                    const newWidth = Math.max(30, startWidth + deltaX);
+                    line.style.width = `${newWidth}px`;
+                    if (!line.style.margin || line.style.margin.includes('auto')) {
+                      line.style.margin = '16px auto';
+                    }
+
+                    const newRect = line.getBoundingClientRect();
+                    setActiveLinePos({
+                      top: newRect.top,
+                      left: newRect.left,
+                      width: newRect.width,
+                      height: newRect.height,
+                      isVertical: false,
+                      lineEl: line
+                    });
+                  };
+
+                  const handleMouseUp = () => {
+                    resizingRef.current = null;
+                    window.removeEventListener('mousemove', handleMouseMove);
+                    window.removeEventListener('mouseup', handleMouseUp);
+                  };
+
+                  window.addEventListener('mousemove', handleMouseMove);
+                  window.addEventListener('mouseup', handleMouseUp);
+                }}
+                title="Drag to resize width"
+              />
+            </>
+          ) : (
+            <>
+              {/* Top Resize Handle for Vertical Line */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '-6px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#2563EB',
+                  border: '2px solid white',
+                  borderRadius: '50%',
+                  cursor: 'ns-resize',
+                  pointerEvents: 'auto'
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const line = activeLinePos.lineEl;
+                  const startY = e.clientY;
+                  const startHeight = line.offsetHeight;
+
+                  resizingRef.current = { type: 'line-resize' };
+
+                  const handleMouseMove = (moveEvent) => {
+                    moveEvent.preventDefault();
+                    const deltaY = startY - moveEvent.clientY;
+                    const newHeight = Math.max(15, startHeight + deltaY);
+                    line.style.height = `${newHeight}px`;
+
+                    const newRect = line.getBoundingClientRect();
+                    setActiveLinePos({
+                      top: newRect.top,
+                      left: newRect.left,
+                      width: newRect.width,
+                      height: newRect.height,
+                      isVertical: true,
+                      lineEl: line
+                    });
+                  };
+
+                  const handleMouseUp = () => {
+                    resizingRef.current = null;
+                    window.removeEventListener('mousemove', handleMouseMove);
+                    window.removeEventListener('mouseup', handleMouseUp);
+                  };
+
+                  window.addEventListener('mousemove', handleMouseMove);
+                  window.addEventListener('mouseup', handleMouseUp);
+                }}
+                title="Drag to resize height"
+              />
+
+              {/* Bottom Resize Handle for Vertical Line */}
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '-6px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#2563EB',
+                  border: '2px solid white',
+                  borderRadius: '50%',
+                  cursor: 'ns-resize',
+                  pointerEvents: 'auto'
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const line = activeLinePos.lineEl;
+                  const startY = e.clientY;
+                  const startHeight = line.offsetHeight;
+
+                  resizingRef.current = { type: 'line-resize' };
+
+                  const handleMouseMove = (moveEvent) => {
+                    moveEvent.preventDefault();
+                    const deltaY = moveEvent.clientY - startY;
+                    const newHeight = Math.max(15, startHeight + deltaY);
+                    line.style.height = `${newHeight}px`;
+
+                    const newRect = line.getBoundingClientRect();
+                    setActiveLinePos({
+                      top: newRect.top,
+                      left: newRect.left,
+                      width: newRect.width,
+                      height: newRect.height,
+                      isVertical: true,
+                      lineEl: line
+                    });
+                  };
+
+                  const handleMouseUp = () => {
+                    resizingRef.current = null;
+                    window.removeEventListener('mousemove', handleMouseMove);
+                    window.removeEventListener('mouseup', handleMouseUp);
+                  };
+
+                  window.addEventListener('mousemove', handleMouseMove);
+                  window.addEventListener('mouseup', handleMouseUp);
+                }}
+                title="Drag to resize height"
+              />
+
+              {/* Middle-Left Column Resize Handle for Vertical Line */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '-6px',
+                  transform: 'translateY(-50%)',
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#2563EB',
+                  border: '2px solid white',
+                  borderRadius: '2px',
+                  cursor: 'col-resize',
+                  pointerEvents: 'auto'
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const line = activeLinePos.lineEl;
+                  const container = line.closest('.editor-column-container');
+
+                  resizingRef.current = { type: 'col-drag' };
+
+                  const handleMouseMove = (moveEvent) => {
+                    moveEvent.preventDefault();
+                    if (container) {
+                      const containerRect = container.getBoundingClientRect();
+                      const relativeX = moveEvent.clientX - containerRect.left;
+                      const pct = Math.min(98, Math.max(2, (relativeX / containerRect.width) * 100));
+
+                      const leftCol = container.querySelector('.editor-column-left');
+                      const rightCol = container.querySelector('.editor-column-right');
+
+                      if (leftCol && rightCol) {
+                        leftCol.style.flex = `0 0 ${pct}%`;
+                        leftCol.style.width = `${pct}%`;
+                        leftCol.style.maxWidth = `${pct}%`;
+
+                        rightCol.style.flex = `0 0 ${100 - pct}%`;
+                        rightCol.style.width = `${100 - pct}%`;
+                        rightCol.style.maxWidth = `${100 - pct}%`;
+                      }
+                    }
+
+                    const newRect = line.getBoundingClientRect();
+                    setActiveLinePos({
+                      top: newRect.top,
+                      left: newRect.left,
+                      width: newRect.width,
+                      height: newRect.height,
+                      isVertical: true,
+                      lineEl: line,
+                      isPinned: true
+                    });
+                  };
+
+                  const handleMouseUp = () => {
+                    resizingRef.current = null;
+                    window.removeEventListener('mousemove', handleMouseMove);
+                    window.removeEventListener('mouseup', handleMouseUp);
+                  };
+
+                  window.addEventListener('mousemove', handleMouseMove);
+                  window.addEventListener('mouseup', handleMouseUp);
+                }}
+                title="Drag left/right to adjust column widths"
+              />
+
+              {/* Middle-Right Column Resize Handle for Vertical Line */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  right: '-6px',
+                  transform: 'translateY(-50%)',
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#2563EB',
+                  border: '2px solid white',
+                  borderRadius: '2px',
+                  cursor: 'col-resize',
+                  pointerEvents: 'auto'
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const line = activeLinePos.lineEl;
+                  const container = line.closest('.editor-column-container');
+
+                  resizingRef.current = { type: 'col-drag' };
+
+                  const handleMouseMove = (moveEvent) => {
+                    moveEvent.preventDefault();
+                    if (container) {
+                      const containerRect = container.getBoundingClientRect();
+                      const relativeX = moveEvent.clientX - containerRect.left;
+                      const pct = Math.min(98, Math.max(2, (relativeX / containerRect.width) * 100));
+
+                      const leftCol = container.querySelector('.editor-column-left');
+                      const rightCol = container.querySelector('.editor-column-right');
+
+                      if (leftCol && rightCol) {
+                        leftCol.style.flex = `0 0 ${pct}%`;
+                        leftCol.style.width = `${pct}%`;
+                        leftCol.style.maxWidth = `${pct}%`;
+
+                        rightCol.style.flex = `0 0 ${100 - pct}%`;
+                        rightCol.style.width = `${100 - pct}%`;
+                        rightCol.style.maxWidth = `${100 - pct}%`;
+                      }
+                    }
+
+                    const newRect = line.getBoundingClientRect();
+                    setActiveLinePos({
+                      top: newRect.top,
+                      left: newRect.left,
+                      width: newRect.width,
+                      height: newRect.height,
+                      isVertical: true,
+                      lineEl: line,
+                      isPinned: true
+                    });
+                  };
+
+                  const handleMouseUp = () => {
+                    resizingRef.current = null;
+                    window.removeEventListener('mousemove', handleMouseMove);
+                    window.removeEventListener('mouseup', handleMouseUp);
+                  };
+
+                  window.addEventListener('mousemove', handleMouseMove);
+                  window.addEventListener('mouseup', handleMouseUp);
+                }}
+                title="Drag left/right to adjust column widths"
+              />
+            </>
+          )}
+        </div>
+      )}
       <div
         className="w-full max-w-4xl bg-white rounded-t-xl shadow-md border border-gray-200 p-2 flex flex-wrap items-center gap-2 sticky top-16 z-40 print:hidden"
         onMouseDown={(e) => {
@@ -1516,6 +2443,7 @@ const CustomEditorPage = () => {
             setIsShadingDropdownOpen(false);
             setIsBorderDropdownOpen(false);
             setIsTableDropdownOpen(false);
+            setIsDividerDropdownOpen(false);
           }
         }}
       >
@@ -2037,6 +2965,170 @@ const CustomEditorPage = () => {
           </button>
         </div>
 
+        {/* Insert Divider Line Dropdown (Horizontal & Vertical) */}
+        <div className="flex items-center border-l border-gray-300 pl-2 pr-2">
+          <div className="relative flex items-center">
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsDividerDropdownOpen(!isDividerDropdownOpen);
+                setIsTableDropdownOpen(false);
+                setIsBorderDropdownOpen(false);
+                setIsShadingDropdownOpen(false);
+                setIsHighlightColorDropdownOpen(false);
+                setIsFontColorDropdownOpen(false);
+                setIsFontDropdownOpen(false);
+                setIsFontSizeDropdownOpen(false);
+                setActiveListDropdown(null);
+              }}
+              className={`p-1.5 px-2 rounded flex items-center gap-1 bg-gray-50 border border-transparent hover:bg-gray-100 text-gray-700 text-sm ${isDividerDropdownOpen ? 'bg-blue-100 text-blue-700 shadow-inner' : ''}`}
+              title="Insert Divider Line"
+            >
+              <FiMinus size={16} className="text-gray-700 stroke-[3]" />
+              <span className="text-xs font-medium">Divider</span>
+              <FiChevronDown size={12} className="text-gray-500" />
+            </button>
+
+            {isDividerDropdownOpen && (
+              <div className="absolute top-full mt-1 left-0 bg-white shadow-xl border border-gray-200 rounded-lg p-3 z-50 w-64 flex flex-col gap-3 print:hidden">
+                {/* Header */}
+                <div className="text-xs font-semibold text-gray-600 border-b border-gray-100 pb-1 flex justify-between items-center">
+                  <span>Insert Divider Line</span>
+                </div>
+
+                {/* Horizontal Dividers Section */}
+                <div>
+                  <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Horizontal Lines</div>
+                  <div className="flex flex-col gap-1.5">
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        insertDividerLine('horizontal', { style: 'solid', thickness: activeLineThickness, color: activeLineColor });
+                      }}
+                      className="w-full p-1.5 hover:bg-gray-50 border border-gray-200 rounded flex items-center justify-between text-xs text-gray-700 group"
+                    >
+                      <span>Solid Line</span>
+                      <div className="w-24 h-0 border-t-2 border-gray-700 group-hover:border-blue-600"></div>
+                    </button>
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        insertDividerLine('horizontal', { style: 'dashed', thickness: activeLineThickness, color: activeLineColor });
+                      }}
+                      className="w-full p-1.5 hover:bg-gray-50 border border-gray-200 rounded flex items-center justify-between text-xs text-gray-700 group"
+                    >
+                      <span>Dashed Line</span>
+                      <div className="w-24 h-0 border-t-2 border-dashed border-gray-700 group-hover:border-blue-600"></div>
+                    </button>
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        insertDividerLine('horizontal', { style: 'dotted', thickness: activeLineThickness, color: activeLineColor });
+                      }}
+                      className="w-full p-1.5 hover:bg-gray-50 border border-gray-200 rounded flex items-center justify-between text-xs text-gray-700 group"
+                    >
+                      <span>Dotted Line</span>
+                      <div className="w-24 h-0 border-t-2 border-dotted border-gray-700 group-hover:border-blue-600"></div>
+                    </button>
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        insertDividerLine('horizontal', { style: 'double', color: activeLineColor });
+                      }}
+                      className="w-full p-1.5 hover:bg-gray-50 border border-gray-200 rounded flex items-center justify-between text-xs text-gray-700 group"
+                    >
+                      <span>Double Line</span>
+                      <div className="w-24 h-1 border-t-4 border-double border-gray-700 group-hover:border-blue-600"></div>
+                    </button>
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        insertDividerLine('horizontal', { style: 'gradient', color: activeLineColor });
+                      }}
+                      className="w-full p-1.5 hover:bg-gray-50 border border-gray-200 rounded flex items-center justify-between text-xs text-gray-700 group"
+                    >
+                      <span>Gradient Line</span>
+                      <div className="w-24 h-1 rounded bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Vertical Dividers Section */}
+                <div>
+                  <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Vertical Separators</div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        insertDividerLine('vertical', { style: 'solid', height: '32px', thickness: activeLineThickness, color: activeLineColor });
+                      }}
+                      className="p-1.5 hover:bg-gray-50 border border-gray-200 rounded flex items-center justify-center gap-2 text-xs text-gray-700"
+                    >
+                      <span>Vertical Bar</span>
+                      <div className="w-0 h-4 border-l-2 border-gray-700"></div>
+                    </button>
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        insertDividerLine('vertical', { style: 'dashed', height: '32px', thickness: activeLineThickness, color: activeLineColor });
+                      }}
+                      className="p-1.5 hover:bg-gray-50 border border-gray-200 rounded flex items-center justify-center gap-2 text-xs text-gray-700"
+                    >
+                      <span>Vertical Dashed</span>
+                      <div className="w-0 h-4 border-l-2 border-dashed border-gray-700"></div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Options: Color & Thickness */}
+                <div className="border-t border-gray-100 pt-2 flex flex-col gap-2">
+                  {/* Color Selector */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500 font-medium">Line Color:</span>
+                    <div className="flex items-center gap-1">
+                      {['#000000', '#374151', '#2563eb', '#dc2626', '#16a34a', '#9333ea'].map((c) => (
+                        <button
+                          key={c}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setActiveLineColor(c);
+                          }}
+                          className={`w-4 h-4 rounded-full border ${activeLineColor === c ? 'ring-2 ring-blue-500 scale-110' : 'border-gray-300'}`}
+                          style={{ backgroundColor: c }}
+                          title={c}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Thickness Selector */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500 font-medium">Thickness:</span>
+                    <div className="flex items-center gap-1">
+                      {[
+                        { label: 'Thin', val: '1px' },
+                        { label: 'Med', val: '2px' },
+                        { label: 'Thick', val: '4px' },
+                      ].map((t) => (
+                        <button
+                          key={t.val}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setActiveLineThickness(t.val);
+                          }}
+                          className={`px-2 py-0.5 text-[11px] rounded border ${activeLineThickness === t.val ? 'bg-blue-100 text-blue-700 border-blue-300 font-medium' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Print / Save */}
         <div className="flex-1 flex justify-end">
           <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm">
@@ -2096,7 +3188,7 @@ const CustomEditorPage = () => {
           onMouseUp={updateActiveStates}
           onFocus={updateActiveStates}
           onClick={handleEditorCanvasClick}
-          onDoubleClick={handleEditorCanvasClick}
+          onDoubleClick={(e) => { handleEditorCanvasClick(e); handleCanvasDoubleClick(e); }}
           onDragStart={(e) => {
             if (e.target && e.target.nodeName === 'IMG') {
               draggedNodeRef.current = e.target;
