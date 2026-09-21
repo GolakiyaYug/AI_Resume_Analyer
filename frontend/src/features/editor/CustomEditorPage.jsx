@@ -204,6 +204,15 @@ const CustomEditorPage = () => {
         }
       }
 
+      if (node.nodeName === 'TABLE') {
+        node.style.position = 'relative';
+        node.style.left = 'auto';
+        node.style.top = 'auto';
+        node.style.margin = '16px 0';
+        node.style.clear = 'both';
+        node.style.display = 'table';
+      }
+
       if (node.nodeName === 'IMG') {
         node.style.position = 'static';
         node.style.maxWidth = '100%';
@@ -334,6 +343,68 @@ const CustomEditorPage = () => {
     }
   };
 
+  const dropNodeIntoFlow = (node, clientX, clientY) => {
+    let activeEditor = isHeaderActive ? headerRef.current : isFooterActive ? footerRef.current : editorRef.current;
+    if (!node || !activeEditor) return;
+
+    if (dropIndicatorPos && dropIndicatorPos.targetBlock) {
+      executeNodeDrop(node);
+      return;
+    }
+
+    const children = Array.from(activeEditor.children).filter(child => child !== node);
+    let targetChild = null;
+    let insertBefore = false;
+
+    for (const child of children) {
+      const rect = child.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      if (clientY < midY) {
+        targetChild = child;
+        insertBefore = true;
+        break;
+      }
+    }
+
+    if (targetChild) {
+      if (insertBefore) {
+        activeEditor.insertBefore(node, targetChild);
+      } else {
+        if (targetChild.nextSibling) {
+          activeEditor.insertBefore(node, targetChild.nextSibling);
+        } else {
+          activeEditor.appendChild(node);
+        }
+      }
+    } else {
+      activeEditor.appendChild(node);
+    }
+
+    if (node.nodeName === 'TABLE') {
+      node.style.position = 'relative';
+      node.style.left = 'auto';
+      node.style.top = 'auto';
+      node.style.margin = '16px 0';
+      node.style.clear = 'both';
+      node.style.display = 'table';
+    }
+
+    if (!node.nextSibling || node.nextSibling.nodeName !== 'P') {
+      const p = document.createElement('p');
+      p.innerHTML = '<br>';
+      if (node.nextSibling) {
+        activeEditor.insertBefore(p, node.nextSibling);
+      } else {
+        activeEditor.appendChild(p);
+      }
+    }
+
+    const newRect = node.getBoundingClientRect();
+    if (node.nodeName === 'TABLE') {
+      setActiveTablePos({ top: newRect.top, left: newRect.left, table: node });
+    }
+  };
+
   const startFreeDragTable = (e, table) => {
     if (!e || !table) return;
     e.preventDefault();
@@ -365,6 +436,7 @@ const CustomEditorPage = () => {
     const maxTop = Math.max(0, canvasRect.height - tableRect.height);
 
     resizingRef.current = { type: 'free-drag-table', node: table };
+    draggedTableRef.current = table;
 
     const handleMouseMove = (moveEvent) => {
       moveEvent.preventDefault();
@@ -380,6 +452,8 @@ const CustomEditorPage = () => {
       table.style.left = `${clampedLeft}px`;
       table.style.top = `${clampedTop}px`;
 
+      updateDropIndicator(moveEvent.clientX, moveEvent.clientY);
+
       const newRect = table.getBoundingClientRect();
       setActiveTablePos({
         top: newRect.top,
@@ -388,13 +462,11 @@ const CustomEditorPage = () => {
       });
     };
 
-    const handleMouseUp = () => {
-      const updatedRect = table.getBoundingClientRect();
-      setActiveTablePos({
-        top: updatedRect.top,
-        left: updatedRect.left,
-        table: table
-      });
+    const handleMouseUp = (upEvent) => {
+      const upX = upEvent ? upEvent.clientX : startX;
+      const upY = upEvent ? upEvent.clientY : startY;
+
+      dropNodeIntoFlow(table, upX, upY);
 
       resizingRef.current = null;
       draggedTableRef.current = null;
@@ -1706,6 +1778,9 @@ const CustomEditorPage = () => {
   const handlePrint = () => {
     setIsHeaderActive(false);
     setIsFooterActive(false);
+    setActiveImgPos(null);
+    setActiveLinePos(null);
+    setActiveTablePos(null);
     setTimeout(() => window.print(), 100);
   };
 
@@ -3606,7 +3681,10 @@ const CustomEditorPage = () => {
       </div>
 
       {/* Editor Canvas (A4 Paper look) */}
-      <div className="w-full max-w-[794px] min-h-[1123px] bg-white shadow-2xl mt-4 print:shadow-none print:mt-0 print:border-none focus:outline-none transition-colors duration-300 flex flex-col relative">
+      <div
+        id="resume-preview"
+        className="print-visible w-full max-w-[794px] min-h-[1123px] bg-white shadow-2xl mt-4 print:shadow-none print:mt-0 print:border-none focus:outline-none transition-colors duration-300 flex flex-col relative"
+      >
 
         {/* Header Margin */}
         <div

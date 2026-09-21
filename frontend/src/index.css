@@ -36,6 +36,7 @@
   body {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    background: white !important;
   }
 
   body * {
@@ -43,20 +44,27 @@
   }
 
   #resume-preview,
-  #resume-preview * {
-    visibility: visible;
+  #resume-preview *,
+  .print-visible,
+  .print-visible * {
+    visibility: visible !important;
   }
 
-  #resume-preview {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    /* Force background colors to print */
+  #resume-preview,
+  .print-visible {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+    visibility: hidden !important;
   }
 }
 
@@ -259,4 +267,11 @@
 [contenteditable] img {
   max-width: 100%;
   shape-outside: margin-box;
+}
+
+[contenteditable] table {
+  max-width: 100%;
+  margin-top: 1rem !important;
+  margin-bottom: 1rem !important;
+  clear: both !important;
 }
