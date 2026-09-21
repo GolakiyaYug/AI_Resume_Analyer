@@ -71,6 +71,7 @@ const CustomEditorPage = () => {
   const resizingRef = useRef(null);
   const draggedTableRef = useRef(null);
   const draggedNodeRef = useRef(null);
+  const imgToolbarRef = useRef(null);
 
   const closeAllDropdowns = () => {
     setIsFontDropdownOpen(false);
@@ -1879,174 +1880,217 @@ const CustomEditorPage = () => {
           </div>
 
           {/* Top Floating Image Controls Toolbar */}
-          <div
-            style={{
+          {(() => {
+            const canvasEl = editorRef.current?.parentNode || editorRef.current;
+            const canvasRect = canvasEl ? canvasEl.getBoundingClientRect() : null;
+
+            let toolbarTop = '-42px';
+            let toolbarLeftVal = 0;
+            let maxAllowedWidth = '100%';
+
+            if (canvasRect) {
+              const isNearTop = (activeImgPos.top - canvasRect.top < 48);
+              toolbarTop = isNearTop ? `${activeImgPos.height + 8}px` : '-42px';
+
+              const pageLeft = canvasRect.left + 8;
+              const pageRight = canvasRect.right - 8;
+              const maxCanvasWidth = Math.max(100, canvasRect.width - 16);
+              maxAllowedWidth = `${maxCanvasWidth}px`;
+
+              let toolbarWidth = 480;
+              if (imgToolbarRef.current) {
+                const measured = imgToolbarRef.current.getBoundingClientRect().width;
+                if (measured > 0) {
+                  toolbarWidth = measured;
+                }
+              }
+
+              const effectiveToolbarWidth = Math.min(toolbarWidth, maxCanvasWidth);
+              const maxViewportLeft = pageRight - effectiveToolbarWidth;
+              const minViewportLeft = pageLeft;
+
+              const desiredViewportLeft = Math.max(minViewportLeft, Math.min(activeImgPos.left, maxViewportLeft));
+              toolbarLeftVal = desiredViewportLeft - activeImgPos.left;
+            }
+
+            const toolbarStyle = {
               position: 'absolute',
-              top: '-36px',
-              left: '0px',
-              pointerEvents: 'auto'
-            }}
-            className="flex items-center gap-1.5 bg-white border border-gray-200 shadow-md rounded-md px-2 py-1 z-70 print:hidden text-xs"
-          >
-            <span className="font-semibold text-gray-500 mr-0.5">Shape:</span>
+              top: toolbarTop,
+              left: `${toolbarLeftVal}px`,
+              maxWidth: maxAllowedWidth,
+              boxSizing: 'border-box',
+              pointerEvents: 'auto',
+              whiteSpace: 'nowrap',
+              zIndex: 70
+            };
 
-            <button
-              onMouseDown={(e) => {
-                e.preventDefault();
-                if (activeImgPos?.img) {
-                  const img = activeImgPos.img;
-                  img.style.borderRadius = '0px';
-                  img.style.objectFit = 'initial';
-                }
-              }}
-              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
-              title="Square Shape"
-            >
-              Square
-            </button>
-            <button
-              onMouseDown={(e) => {
-                e.preventDefault();
-                if (activeImgPos?.img) {
-                  const img = activeImgPos.img;
-                  img.style.borderRadius = '16px';
-                  img.style.objectFit = 'initial';
-                }
-              }}
-              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
-              title="Rounded Rectangle Shape"
-            >
-              Rounded
-            </button>
-            <button
-              onMouseDown={(e) => {
-                e.preventDefault();
-                if (activeImgPos?.img) {
-                  const img = activeImgPos.img;
-                  img.style.borderRadius = '50%';
-                  img.style.objectFit = 'cover';
-                  const side = Math.min(activeImgPos.width, activeImgPos.height);
-                  img.style.width = `${side}px`;
-                  img.style.height = `${side}px`;
-                  const rect = img.getBoundingClientRect();
-                  setActiveImgPos({ ...activeImgPos, width: rect.width, height: rect.height });
-                }
-              }}
-              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
-              title="Circle Shape"
-            >
-              Circle
-            </button>
-            <button
-              onMouseDown={(e) => {
-                e.preventDefault();
-                if (activeImgPos?.img) {
-                  const img = activeImgPos.img;
-                  img.style.borderRadius = '9999px';
-                  img.style.objectFit = 'cover';
-                }
-              }}
-              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
-              title="Pill / Oval Shape"
-            >
-              Pill
-            </button>
-            <button
-              onMouseDown={(e) => {
-                e.preventDefault();
-                if (activeImgPos?.img) {
-                  const img = activeImgPos.img;
-                  img.style.borderRadius = '4px';
-                  img.style.objectFit = 'initial';
-                }
-              }}
-              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
-              title="Reset Shape"
-            >
-              Reset
-            </button>
+            return (
+              <div
+                ref={imgToolbarRef}
+                style={toolbarStyle}
+                className="flex items-center gap-1.5 bg-white border border-gray-200 shadow-md rounded-md px-2 py-1 print:hidden text-xs"
+              >
+                <span className="font-semibold text-gray-500 mr-0.5">Shape:</span>
 
-            <div className="w-[1px] h-4 bg-gray-200 mx-0.5"></div>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeImgPos?.img) {
+                      const img = activeImgPos.img;
+                      img.style.borderRadius = '0px';
+                      img.style.objectFit = 'initial';
+                    }
+                  }}
+                  className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
+                  title="Square Shape"
+                >
+                  Square
+                </button>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeImgPos?.img) {
+                      const img = activeImgPos.img;
+                      img.style.borderRadius = '16px';
+                      img.style.objectFit = 'initial';
+                    }
+                  }}
+                  className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
+                  title="Rounded Rectangle Shape"
+                >
+                  Rounded
+                </button>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeImgPos?.img) {
+                      const img = activeImgPos.img;
+                      img.style.borderRadius = '50%';
+                      img.style.objectFit = 'cover';
+                      const side = Math.min(activeImgPos.width, activeImgPos.height);
+                      img.style.width = `${side}px`;
+                      img.style.height = `${side}px`;
+                      const rect = img.getBoundingClientRect();
+                      setActiveImgPos({ ...activeImgPos, width: rect.width, height: rect.height });
+                    }
+                  }}
+                  className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
+                  title="Circle Shape"
+                >
+                  Circle
+                </button>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeImgPos?.img) {
+                      const img = activeImgPos.img;
+                      img.style.borderRadius = '9999px';
+                      img.style.objectFit = 'cover';
+                    }
+                  }}
+                  className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
+                  title="Pill / Oval Shape"
+                >
+                  Pill
+                </button>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeImgPos?.img) {
+                      const img = activeImgPos.img;
+                      img.style.borderRadius = '4px';
+                      img.style.objectFit = 'initial';
+                    }
+                  }}
+                  className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
+                  title="Reset Shape"
+                >
+                  Reset
+                </button>
 
-            <span className="font-semibold text-gray-500 mr-0.5">Wrap:</span>
-            <button 
-              onMouseDown={(e) => {
-                e.preventDefault();
-                if (activeImgPos?.img) {
-                  const img = activeImgPos.img;
-                  img.style.position = 'static';
-                  img.style.float = 'none';
-                  img.style.display = 'block';
-                  img.style.clear = 'both';
-                  img.style.margin = '16px auto';
-                  img.style.shapeOutside = 'margin-box';
-                  const rect = img.getBoundingClientRect();
-                  setActiveImgPos({ ...activeImgPos, top: rect.top, left: rect.left });
-                }
-              }} 
-              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
-              title="Top and Bottom Break (Block)"
-            >
-              Top/Bottom
-            </button>
-            <button 
-              onMouseDown={(e) => {
-                e.preventDefault();
-                if (activeImgPos?.img) {
-                  const img = activeImgPos.img;
-                  img.style.position = 'static';
-                  img.style.float = 'left';
-                  img.style.display = 'inline-block';
-                  img.style.clear = 'none';
-                  img.style.margin = '8px 16px 8px 0';
-                  img.style.shapeOutside = 'margin-box';
-                  const rect = img.getBoundingClientRect();
-                  setActiveImgPos({ ...activeImgPos, top: rect.top, left: rect.left });
-                }
-              }} 
-              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
-              title="Text Wrap Left"
-            >
-              Wrap Left
-            </button>
-            <button 
-              onMouseDown={(e) => {
-                e.preventDefault();
-                if (activeImgPos?.img) {
-                  const img = activeImgPos.img;
-                  img.style.position = 'static';
-                  img.style.float = 'right';
-                  img.style.display = 'inline-block';
-                  img.style.clear = 'none';
-                  img.style.margin = '8px 0 8px 16px';
-                  img.style.shapeOutside = 'margin-box';
-                  const rect = img.getBoundingClientRect();
-                  setActiveImgPos({ ...activeImgPos, top: rect.top, left: rect.left });
-                }
-              }} 
-              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
-              title="Text Wrap Right"
-            >
-              Wrap Right
-            </button>
+                <div className="w-[1px] h-4 bg-gray-200 mx-0.5"></div>
 
-            <div className="w-[1px] h-4 bg-gray-200 mx-0.5"></div>
+                <span className="font-semibold text-gray-500 mr-0.5">Wrap:</span>
+                <button 
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeImgPos?.img) {
+                      const img = activeImgPos.img;
+                      img.style.position = 'static';
+                      img.style.float = 'none';
+                      img.style.display = 'block';
+                      img.style.clear = 'both';
+                      img.style.margin = '16px auto';
+                      img.style.shapeOutside = 'margin-box';
+                      const rect = img.getBoundingClientRect();
+                      setActiveImgPos({ ...activeImgPos, top: rect.top, left: rect.left });
+                    }
+                  }} 
+                  className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
+                  title="Top and Bottom Break (Block)"
+                >
+                  Top/Bottom
+                </button>
+                <button 
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeImgPos?.img) {
+                      const img = activeImgPos.img;
+                      img.style.position = 'static';
+                      img.style.float = 'left';
+                      img.style.display = 'inline-block';
+                      img.style.clear = 'none';
+                      img.style.margin = '8px 16px 8px 0';
+                      img.style.shapeOutside = 'margin-box';
+                      const rect = img.getBoundingClientRect();
+                      setActiveImgPos({ ...activeImgPos, top: rect.top, left: rect.left });
+                    }
+                  }} 
+                  className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
+                  title="Text Wrap Left"
+                >
+                  Wrap Left
+                </button>
+                <button 
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (activeImgPos?.img) {
+                      const img = activeImgPos.img;
+                      img.style.position = 'static';
+                      img.style.float = 'right';
+                      img.style.display = 'inline-block';
+                      img.style.clear = 'none';
+                      img.style.margin = '8px 0 8px 16px';
+                      img.style.shapeOutside = 'margin-box';
+                      const rect = img.getBoundingClientRect();
+                      setActiveImgPos({ ...activeImgPos, top: rect.top, left: rect.left });
+                    }
+                  }} 
+                  className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
+                  title="Text Wrap Right"
+                >
+                  Wrap Right
+                </button>
 
-            {/* Toolbar Drag to Move Handle Button */}
-            <div
-              onMouseDown={(e) => {
-                const img = activeImgPos?.img;
-                if (img) {
-                  startFreeDragImg(e, img);
-                }
-              }}
-              className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded cursor-move shadow flex items-center gap-1 font-medium text-[11px]"
-              title="Drag Move Handle to position image anywhere"
-            >
-              <FiMove size={12} />
-              <span>Move</span>
-            </div>
-          </div>
+                <div className="w-[1px] h-4 bg-gray-200 mx-0.5"></div>
+
+                {/* Toolbar Drag to Move Handle Button */}
+                <div
+                  onMouseDown={(e) => {
+                    const img = activeImgPos?.img;
+                    if (img) {
+                      startFreeDragImg(e, img);
+                    }
+                  }}
+                  className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded cursor-move shadow flex items-center gap-1 font-medium text-[11px]"
+                  title="Drag Move Handle to position image anywhere"
+                >
+                  <FiMove size={12} />
+                  <span>Move</span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Top-Left Corner Resize Handle */}
           <div
