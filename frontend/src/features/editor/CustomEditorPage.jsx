@@ -72,6 +72,31 @@ const CustomEditorPage = () => {
   const draggedTableRef = useRef(null);
   const draggedNodeRef = useRef(null);
 
+  const closeAllDropdowns = () => {
+    setIsFontDropdownOpen(false);
+    setIsFontSizeDropdownOpen(false);
+    setIsFontColorDropdownOpen(false);
+    setIsHighlightColorDropdownOpen(false);
+    setIsShadingDropdownOpen(false);
+    setIsBorderDropdownOpen(false);
+    setIsTableDropdownOpen(false);
+    setIsDividerDropdownOpen(false);
+    setActiveListDropdown(null);
+  };
+
+  useEffect(() => {
+    const handleGlobalMouseDown = (e) => {
+      if (!e.target.closest('[data-dropdown-container]')) {
+        closeAllDropdowns();
+      }
+    };
+
+    document.addEventListener('mousedown', handleGlobalMouseDown);
+    return () => {
+      document.removeEventListener('mousedown', handleGlobalMouseDown);
+    };
+  }, []);
+
   const handleImageUpload = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -181,9 +206,13 @@ const CustomEditorPage = () => {
 
       if (node.nodeName === 'IMG') {
         node.style.position = 'static';
-        node.style.display = 'inline-block';
-        node.style.margin = '12px 0';
         node.style.maxWidth = '100%';
+        node.style.shapeOutside = 'margin-box';
+        if (!node.style.float || node.style.float === 'none') {
+          node.style.display = 'block';
+          node.style.margin = '16px auto';
+          node.style.clear = 'both';
+        }
       }
 
       if (!node.nextSibling || node.nextSibling.nodeName !== 'P') {
@@ -217,15 +246,28 @@ const CustomEditorPage = () => {
     let target = e.target;
     if (target && target.nodeName === 'IMG') {
       const rect = target.getBoundingClientRect();
-      setActiveImgPos({
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
-        img: target
+      setActiveImgPos((prev) => {
+        if (prev && prev.isPinned && prev.img === target) {
+          return {
+            top: rect.top,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height,
+            img: target,
+            isPinned: true
+          };
+        }
+        return {
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height,
+          img: target,
+          isPinned: prev ? prev.isPinned : false
+        };
       });
       return;
-    } else if (activeImgPos && !target.closest('.image-control-overlay')) {
+    } else if (activeImgPos && !activeImgPos.isPinned && !target.closest('.image-control-overlay')) {
       setActiveImgPos(null);
     }
 
@@ -290,6 +332,181 @@ const CustomEditorPage = () => {
         }
       }
     }
+  };
+
+  const startFreeDragTable = (e, table) => {
+    if (!e || !table) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const editorCanvas = editorRef.current?.parentNode || editorRef.current;
+    if (!editorCanvas) return;
+
+    const canvasRect = editorCanvas.getBoundingClientRect();
+    const tableRect = table.getBoundingClientRect();
+
+    let initialLeft = table.offsetLeft;
+    let initialTop = table.offsetTop;
+
+    if (window.getComputedStyle(table).position !== 'absolute') {
+      initialLeft = tableRect.left - canvasRect.left;
+      initialTop = tableRect.top - canvasRect.top;
+      table.style.position = 'absolute';
+      table.style.left = `${initialLeft}px`;
+      table.style.top = `${initialTop}px`;
+      table.style.margin = '0';
+      table.style.zIndex = '25';
+    }
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    const maxLeft = Math.max(0, canvasRect.width - tableRect.width);
+    const maxTop = Math.max(0, canvasRect.height - tableRect.height);
+
+    resizingRef.current = { type: 'free-drag-table', node: table };
+
+    const handleMouseMove = (moveEvent) => {
+      moveEvent.preventDefault();
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+
+      const rawLeft = initialLeft + deltaX;
+      const rawTop = initialTop + deltaY;
+
+      const clampedLeft = Math.min(Math.max(0, rawLeft), maxLeft);
+      const clampedTop = Math.min(Math.max(0, rawTop), maxTop);
+
+      table.style.left = `${clampedLeft}px`;
+      table.style.top = `${clampedTop}px`;
+
+      const newRect = table.getBoundingClientRect();
+      setActiveTablePos({
+        top: newRect.top,
+        left: newRect.left,
+        table: table
+      });
+    };
+
+    const handleMouseUp = () => {
+      const updatedRect = table.getBoundingClientRect();
+      setActiveTablePos({
+        top: updatedRect.top,
+        left: updatedRect.left,
+        table: table
+      });
+
+      resizingRef.current = null;
+      draggedTableRef.current = null;
+      setDropIndicatorPos(null);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const startFreeDragImg = (e, img) => {
+    if (!e || !img) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const editorCanvas = editorRef.current?.parentNode || editorRef.current;
+    if (!editorCanvas) return;
+
+    const canvasRect = editorCanvas.getBoundingClientRect();
+    const imgRect = img.getBoundingClientRect();
+
+    let initialLeft = img.offsetLeft;
+    let initialTop = img.offsetTop;
+
+    if (window.getComputedStyle(img).position !== 'absolute') {
+      initialLeft = imgRect.left - canvasRect.left;
+      initialTop = imgRect.top - canvasRect.top;
+      img.style.position = 'absolute';
+      img.style.left = `${initialLeft}px`;
+      img.style.top = `${initialTop}px`;
+      img.style.margin = '0';
+      img.style.zIndex = '25';
+    }
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    const maxLeft = Math.max(0, canvasRect.width - imgRect.width);
+    const maxTop = Math.max(0, canvasRect.height - imgRect.height);
+
+    resizingRef.current = { type: 'free-drag-img', node: img };
+
+    const handleMouseMove = (moveEvent) => {
+      moveEvent.preventDefault();
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+
+      const rawLeft = initialLeft + deltaX;
+      const rawTop = initialTop + deltaY;
+
+      const clampedLeft = Math.min(Math.max(0, rawLeft), maxLeft);
+      const clampedTop = Math.min(Math.max(0, rawTop), maxTop);
+
+      img.style.left = `${clampedLeft}px`;
+      img.style.top = `${clampedTop}px`;
+
+      const newRect = img.getBoundingClientRect();
+      setActiveImgPos({
+        top: newRect.top,
+        left: newRect.left,
+        width: newRect.width,
+        height: newRect.height,
+        img: img,
+        isPinned: true
+      });
+    };
+
+    const handleMouseUp = (upEvent) => {
+      const dropX = (upEvent ? upEvent.clientX : startX) - canvasRect.left;
+
+      img.style.position = 'static';
+      img.style.maxWidth = '100%';
+      img.style.shapeOutside = 'margin-box';
+
+      if (dropX < canvasRect.width * 0.4) {
+        img.style.float = 'left';
+        img.style.margin = '8px 16px 8px 0';
+        img.style.display = 'inline-block';
+        img.style.clear = 'none';
+      } else if (dropX > canvasRect.width * 0.6) {
+        img.style.float = 'right';
+        img.style.margin = '8px 0 8px 16px';
+        img.style.display = 'inline-block';
+        img.style.clear = 'none';
+      } else {
+        img.style.float = 'none';
+        img.style.display = 'block';
+        img.style.clear = 'both';
+        img.style.margin = '16px auto';
+      }
+
+      const updatedRect = img.getBoundingClientRect();
+      setActiveImgPos({
+        top: updatedRect.top,
+        left: updatedRect.left,
+        width: updatedRect.width,
+        height: updatedRect.height,
+        img: img,
+        isPinned: true
+      });
+
+      resizingRef.current = null;
+      draggedNodeRef.current = null;
+      setDropIndicatorPos(null);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
   };
 
   const handleCanvasMouseDown = (e) => {
@@ -459,75 +676,20 @@ const CustomEditorPage = () => {
 
     if (target && target.nodeName === 'IMG') {
       const img = target;
-      const editorCanvas = editorRef.current?.parentNode;
-      if (!editorCanvas) return;
+      const rect = img.getBoundingClientRect();
+      setActiveImgPos({
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+        img: img,
+        isPinned: true
+      });
 
-      const editorRect = editorCanvas.getBoundingClientRect();
-      const imgRect = img.getBoundingClientRect();
-
-      const startX = e.clientX;
-      const startY = e.clientY;
-
-      let initialLeft = img.offsetLeft;
-      let initialTop = img.offsetTop;
-
-      if (window.getComputedStyle(img).position !== 'absolute') {
-        initialLeft = imgRect.left - editorRect.left;
-        initialTop = imgRect.top - editorRect.top;
-      }
-
-      let isDragging = false;
-
-      const handleWindowMouseMove = (moveEvent) => {
-        const deltaX = moveEvent.clientX - startX;
-        const deltaY = moveEvent.clientY - startY;
-
-        if (!isDragging && (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3)) {
-          isDragging = true;
-          img.style.position = 'absolute';
-          img.style.zIndex = '20';
-          img.style.margin = '0';
-          resizingRef.current = { type: 'free-drag-img', node: img };
-        }
-
-        if (isDragging) {
-          moveEvent.preventDefault();
-          const newLeft = initialLeft + deltaX;
-          const newTop = initialTop + deltaY;
-
-          img.style.left = `${newLeft}px`;
-          img.style.top = `${newTop}px`;
-
-          const updatedRect = img.getBoundingClientRect();
-          setActiveImgPos({
-            top: updatedRect.top,
-            left: updatedRect.left,
-            width: updatedRect.width,
-            height: updatedRect.height,
-            img: img
-          });
-        }
-      };
-
-      const handleWindowMouseUp = () => {
-        if (isDragging) {
-          const updatedRect = img.getBoundingClientRect();
-          setActiveImgPos({
-            top: updatedRect.top,
-            left: updatedRect.left,
-            width: updatedRect.width,
-            height: updatedRect.height,
-            img: img
-          });
-        }
-        resizingRef.current = null;
-        window.removeEventListener('mousemove', handleWindowMouseMove);
-        window.removeEventListener('mouseup', handleWindowMouseUp);
-      };
-
-      window.addEventListener('mousemove', handleWindowMouseMove);
-      window.addEventListener('mouseup', handleWindowMouseUp);
+      startFreeDragImg(e, img);
       return;
+    } else if (activeImgPos && !target.closest('.image-control-overlay')) {
+      setActiveImgPos(null);
     }
 
     handleTableMouseDown(e);
@@ -665,7 +827,16 @@ const CustomEditorPage = () => {
       editorRef.current.focus();
     }
     updateActiveStates();
-  }, []);
+
+    const handleSelectionOrStateChange = () => {
+      updateActiveStates();
+    };
+
+    document.addEventListener('selectionchange', handleSelectionOrStateChange);
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionOrStateChange);
+    };
+  }, [isHeaderActive, isFooterActive]);
 
   const handleEditorCanvasClick = (e) => {
     let activeEditor = editorRef.current;
@@ -708,6 +879,21 @@ const CustomEditorPage = () => {
 
   const handleCanvasDoubleClick = (e) => {
     let target = e.target;
+
+    if (target && target.nodeName === 'IMG') {
+      e.stopPropagation();
+      const rect = target.getBoundingClientRect();
+      setActiveImgPos({
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+        img: target,
+        isPinned: true
+      });
+      return;
+    }
+
     const dividerEl = (target && target.closest) ? (target.closest('[data-divider]') || target.closest('.editor-divider-v') || target.closest('.editor-divider-h') || (target.nodeName === 'HR' ? target : null)) : null;
 
     if (dividerEl) {
@@ -762,9 +948,11 @@ const CustomEditorPage = () => {
       }
     }
 
-    // 2. ENTER KEY: If on an empty line inside a shaded/bordered box (e.g. user pressed Enter twice), clear box styles from this line
+    // 2. ENTER KEY: Preserve shading/border behavior and carry active font size to new line/paragraph
     if (e.key === 'Enter') {
       const selection = window.getSelection();
+      const currentFontSize = activeFontSize;
+
       if (selection && selection.isCollapsed && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
         let node = range.startContainer;
@@ -800,6 +988,41 @@ const CustomEditorPage = () => {
             }
           }
         }
+      }
+
+      // Schedule post-Enter font size continuation if non-default font size is active
+      if (currentFontSize && currentFontSize !== 12) {
+        setTimeout(() => {
+          const sel = window.getSelection();
+          if (sel && sel.rangeCount > 0 && sel.isCollapsed) {
+            const range = sel.getRangeAt(0);
+            let targetEl = range.startContainer.nodeType === 3 ? range.startContainer.parentNode : range.startContainer;
+
+            let hasExplicitFontSize = false;
+            let curr = targetEl;
+            while (curr && curr.nodeType === 1 && curr !== editorRef.current && curr !== headerRef.current && curr !== footerRef.current) {
+              if (curr.style && curr.style.fontSize) {
+                hasExplicitFontSize = true;
+                break;
+              }
+              curr = curr.parentNode;
+            }
+
+            if (!hasExplicitFontSize) {
+              const span = document.createElement('span');
+              span.style.fontSize = `${currentFontSize}pt`;
+              span.innerHTML = '&#8203;';
+
+              range.insertNode(span);
+              const newRange = document.createRange();
+              newRange.setStart(span.firstChild, 1);
+              newRange.collapse(true);
+              sel.removeAllRanges();
+              sel.addRange(newRange);
+            }
+            updateActiveStates();
+          }
+        }, 0);
       }
     }
 
@@ -972,35 +1195,78 @@ const CustomEditorPage = () => {
     let backColor = document.queryCommandValue('backColor') || document.queryCommandValue('hiliteColor');
     if (backColor) setActiveHighlightColor(backColor);
 
-    let node = window.getSelection().anchorNode;
     let activeEditor = null;
     if (isHeaderActive && headerRef.current) activeEditor = headerRef.current;
     else if (isFooterActive && footerRef.current) activeEditor = footerRef.current;
     else if (editorRef.current) activeEditor = editorRef.current;
 
-    if (node && activeEditor) {
-      let blockNode = node;
-      while (blockNode && blockNode !== activeEditor && !['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI'].includes(blockNode.nodeName)) {
-        blockNode = blockNode.parentNode;
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      savedSelection.current = selection.getRangeAt(0);
+
+      try {
+        const range = selection.getRangeAt(0);
+        let node = range.startContainer;
+        let targetEl = node.nodeType === 3 ? node.parentNode : node;
+
+        if (targetEl && targetEl.nodeType === 1) {
+          let current = targetEl;
+          let detectedPt = null;
+
+          while (current && current !== document.body && current !== document.documentElement) {
+            if (current.style && current.style.fontSize) {
+              const styleFs = current.style.fontSize;
+              if (styleFs.endsWith('pt')) {
+                detectedPt = parseInt(styleFs, 10);
+                break;
+              } else if (styleFs.endsWith('px')) {
+                detectedPt = Math.round(parseFloat(styleFs) * 0.75);
+                break;
+              }
+            }
+            current = current.parentNode;
+          }
+
+          if (!detectedPt && targetEl !== document && targetEl !== document.documentElement) {
+            const computedSize = window.getComputedStyle(targetEl).fontSize;
+            if (computedSize) {
+              detectedPt = Math.round(parseFloat(computedSize) * 0.75);
+            }
+          }
+
+          if (detectedPt && !isNaN(detectedPt) && detectedPt > 0) {
+            setActiveFontSize(detectedPt);
+          }
+        }
+      } catch (e) {
+        console.warn('Could not compute active font size safely:', e);
       }
-      if (blockNode && blockNode !== activeEditor) {
-        setActiveShadingColor(blockNode.style.backgroundColor || 'transparent');
 
-        const b = blockNode.style.border;
-        const bt = blockNode.style.borderTop;
-        const bb = blockNode.style.borderBottom;
-        const bl = blockNode.style.borderLeft;
-        const br = blockNode.style.borderRight;
+      let node = selection.anchorNode;
+      if (node && activeEditor) {
+        let blockNode = node;
+        while (blockNode && blockNode !== activeEditor && !['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI'].includes(blockNode.nodeName)) {
+          blockNode = blockNode.parentNode;
+        }
+        if (blockNode && blockNode !== activeEditor) {
+          setActiveShadingColor(blockNode.style.backgroundColor || 'transparent');
 
-        if (b && b !== 'none') setActiveBorder('all');
-        else if (bb && bb !== 'none') setActiveBorder('bottom');
-        else if (bt && bt !== 'none') setActiveBorder('top');
-        else if (bl && bl !== 'none') setActiveBorder('left');
-        else if (br && br !== 'none') setActiveBorder('right');
-        else setActiveBorder('none');
-      } else {
-        setActiveShadingColor('transparent');
-        setActiveBorder('none');
+          const b = blockNode.style.border;
+          const bt = blockNode.style.borderTop;
+          const bb = blockNode.style.borderBottom;
+          const bl = blockNode.style.borderLeft;
+          const br = blockNode.style.borderRight;
+
+          if (b && b !== 'none') setActiveBorder('all');
+          else if (bb && bb !== 'none') setActiveBorder('bottom');
+          else if (bt && bt !== 'none') setActiveBorder('top');
+          else if (bl && bl !== 'none') setActiveBorder('left');
+          else if (br && br !== 'none') setActiveBorder('right');
+          else setActiveBorder('none');
+        } else {
+          setActiveShadingColor('transparent');
+          setActiveBorder('none');
+        }
       }
     }
 
@@ -1010,34 +1276,17 @@ const CustomEditorPage = () => {
     } else {
       setActiveFont('Arial');
     }
-
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      savedSelection.current = selection.getRangeAt(0);
-
-      try {
-        const parentNode = selection.getRangeAt(0).startContainer.parentNode;
-        // Safely verify it's an element node and not the document root before calling getComputedStyle
-        if (parentNode && parentNode.nodeType === 1 && parentNode !== document && parentNode !== document.documentElement) {
-          const computedSize = window.getComputedStyle(parentNode).fontSize;
-          if (computedSize) {
-            const ptVal = Math.round(parseFloat(computedSize) * 0.75);
-            if (!isNaN(ptVal)) {
-              setActiveFontSize(ptVal);
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Could not compute active font size safely:', e);
-      }
-    }
   };
 
   const executeFontSizeCommand = (size) => {
     const selection = window.getSelection();
-    if (savedSelection.current) {
-      selection.removeAllRanges();
-      selection.addRange(savedSelection.current);
+    if (savedSelection.current && (!selection || selection.rangeCount === 0 || selection.getRangeAt(0).collapsed !== savedSelection.current.collapsed)) {
+      try {
+        selection.removeAllRanges();
+        selection.addRange(savedSelection.current);
+      } catch (err) {
+        console.warn('Could not restore saved selection:', err);
+      }
     }
 
     let activeEditor = null;
@@ -1045,8 +1294,13 @@ const CustomEditorPage = () => {
     else if (isFooterActive && footerRef.current) activeEditor = footerRef.current;
     else if (editorRef.current) activeEditor = editorRef.current;
 
+    if (activeEditor) {
+      activeEditor.focus();
+    }
+
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
+
       if (range.collapsed) {
         // Insert targeted zero-width space span for dynamic typing without selection
         const span = document.createElement('span');
@@ -1056,22 +1310,39 @@ const CustomEditorPage = () => {
         range.insertNode(span);
 
         // Move caret strictly inside the span, after the zero-width space
-        range.setStart(span.firstChild, 1);
-        range.setEnd(span.firstChild, 1);
+        const newRange = document.createRange();
+        newRange.setStart(span.firstChild, 1);
+        newRange.collapse(true);
         selection.removeAllRanges();
-        selection.addRange(range);
+        selection.addRange(newRange);
       } else {
-        document.execCommand("fontSize", false, "7");
-        if (activeEditor) {
-          const fonts = activeEditor.querySelectorAll('font[size="7"]');
-          fonts.forEach(font => {
-            font.removeAttribute('size');
-            font.style.fontSize = `${size}pt`;
-          });
-        }
+        document.execCommand('styleWithCSS', false, true);
+        document.execCommand('fontSize', false, '7');
+
+        const scope = activeEditor || document.body;
+        const fontTags = scope.querySelectorAll('font[size="7"], font[style*="font-size"]');
+        fontTags.forEach(font => {
+          const span = document.createElement('span');
+          span.style.fontSize = `${size}pt`;
+          while (font.firstChild) {
+            span.appendChild(font.firstChild);
+          }
+          if (font.parentNode) {
+            font.parentNode.replaceChild(span, font);
+          }
+        });
+
+        // Ensure inner styled spans inside the selection inherit the new font size
+        const innerSpans = scope.querySelectorAll('span[style*="font-size"]');
+        innerSpans.forEach(span => {
+          if (selection.containsNode && selection.containsNode(span, true)) {
+            span.style.fontSize = `${size}pt`;
+          }
+        });
       }
     }
 
+    setActiveFontSize(size);
     updateActiveStates();
     setIsFontSizeDropdownOpen(false);
 
@@ -1443,9 +1714,10 @@ const CustomEditorPage = () => {
       <style>{`
         .prose table { border: 1.5px solid #000000 !important; border-collapse: collapse !important; }
         .prose td, .prose th { border: 1.5px solid #000000 !important; }
-        .prose img { max-width: 100%; height: auto; display: block; margin: 16px auto; clear: both; }
-        .prose img[style*="float: left"] { display: inline-block !important; float: left !important; clear: none !important; margin: 0 16px 8px 0 !important; }
-        .prose img[style*="float: right"] { display: inline-block !important; float: right !important; clear: none !important; margin: 0 0 8px 16px !important; }
+        .prose img { max-width: 100%; height: auto; display: block; margin: 16px auto; clear: both; shape-outside: margin-box !important; position: static; }
+        .prose img[style*="float: left"] { display: inline-block !important; float: left !important; clear: none !important; margin: 8px 16px 8px 0 !important; shape-outside: margin-box !important; position: static !important; }
+        .prose img[style*="float: right"] { display: inline-block !important; float: right !important; clear: none !important; margin: 8px 0 8px 16px !important; shape-outside: margin-box !important; position: static !important; }
+        .prose img[style*="display: block"] { display: block !important; float: none !important; clear: both !important; margin: 16px auto !important; shape-outside: margin-box !important; position: static !important; }
         .prose hr, .editor-divider-h, .editor-divider-v, [data-divider] { cursor: pointer !important; transition: outline 0.15s ease-in-out; }
         .prose hr:hover, .editor-divider-h:hover, .editor-divider-v:hover, [data-divider]:hover { outline: 2px dashed #2563eb !important; outline-offset: 3px; cursor: pointer !important; }
         .editor-column-container { display: flex !important; flex-direction: row !important; align-items: stretch !important; width: 100% !important; box-sizing: border-box !important; clear: both !important; margin: 16px 0 !important; }
@@ -1481,65 +1753,21 @@ const CustomEditorPage = () => {
             left: `${activeTablePos.left - 12}px`,
             zIndex: 60
           }}
-          draggable={true}
-          onDragStart={(e) => {
-            const table = activeTablePos?.table;
-            if (!table) return;
-            draggedTableRef.current = table;
-            e.dataTransfer.setData('text/plain', 'table-drag');
-            e.dataTransfer.effectAllowed = 'move';
-          }}
-          onDrag={(e) => {
-            if (e.clientX && e.clientY) {
-              updateDropIndicator(e.clientX, e.clientY);
-            }
-          }}
-          onDragEnd={() => {
-            if (draggedTableRef.current) {
-              executeTableDrop(draggedTableRef.current);
-            } else {
-              setDropIndicatorPos(null);
-            }
-          }}
           onMouseDown={(e) => {
-            e.stopPropagation();
-
-            const handleBtn = e.currentTarget;
-            const table = activeTablePos.table;
-            let activeEditor = isHeaderActive ? headerRef.current : isFooterActive ? footerRef.current : editorRef.current;
-
-            resizingRef.current = {
-              type: 'move',
-              table: table,
-              handleBtn: handleBtn,
-              activeEditor: activeEditor
-            };
-
-            const handleWindowMouseMove = (moveEvent) => {
-              if (!resizingRef.current || resizingRef.current.type !== 'move') return;
-              updateDropIndicator(moveEvent.clientX, moveEvent.clientY);
-            };
-
-            const handleWindowMouseUp = () => {
-              if (resizingRef.current && resizingRef.current.type === 'move') {
-                executeTableDrop(resizingRef.current.table);
-              }
-              resizingRef.current = null;
-              window.removeEventListener('mousemove', handleWindowMouseMove);
-              window.removeEventListener('mouseup', handleWindowMouseUp);
-            };
-
-            window.addEventListener('mousemove', handleWindowMouseMove);
-            window.addEventListener('mouseup', handleWindowMouseUp);
+            const table = activeTablePos?.table;
+            if (table) {
+              startFreeDragTable(e, table);
+            }
           }}
           className="w-6 h-6 bg-blue-600 hover:bg-blue-700 text-white rounded flex items-center justify-center cursor-move shadow-md print:hidden select-none"
-          title="Drag to move table"
+          title="Drag dedicated Move Handle to position table anywhere"
         >
           <FiMove size={14} />
         </div>
       )}
 
       {/* Floating Image Controls & Resize Overlay */}
+      {/* Floating Image Controls & Multi-Corner Resize Overlay */}
       {activeImgPos && (
         <div
           className="image-control-overlay"
@@ -1554,6 +1782,27 @@ const CustomEditorPage = () => {
             zIndex: 60
           }}
         >
+          {/* Top-Left Corner Dedicated Move Handle Badge */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '-16px',
+              left: '-16px',
+              zIndex: 85,
+              pointerEvents: 'auto'
+            }}
+            onMouseDown={(e) => {
+              const img = activeImgPos?.img;
+              if (img) {
+                startFreeDragImg(e, img);
+              }
+            }}
+            className="w-7 h-7 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center cursor-move shadow-lg border-2 border-white text-xs select-none transition-transform hover:scale-110"
+            title="Drag dedicated Move Handle to position image anywhere"
+          >
+            <FiMove size={14} />
+          </div>
+
           {/* Top Floating Image Controls Toolbar */}
           <div
             style={{
@@ -1570,12 +1819,13 @@ const CustomEditorPage = () => {
               onMouseDown={(e) => {
                 e.preventDefault();
                 if (activeImgPos?.img) {
-                  activeImgPos.img.style.borderRadius = '0px';
-                  activeImgPos.img.style.objectFit = 'initial';
+                  const img = activeImgPos.img;
+                  img.style.borderRadius = '0px';
+                  img.style.objectFit = 'initial';
                 }
               }}
               className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
-              title="Square Corners"
+              title="Square Shape"
             >
               Square
             </button>
@@ -1583,12 +1833,13 @@ const CustomEditorPage = () => {
               onMouseDown={(e) => {
                 e.preventDefault();
                 if (activeImgPos?.img) {
-                  activeImgPos.img.style.borderRadius = '12px';
-                  activeImgPos.img.style.objectFit = 'initial';
+                  const img = activeImgPos.img;
+                  img.style.borderRadius = '16px';
+                  img.style.objectFit = 'initial';
                 }
               }}
               className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
-              title="Rounded Corners"
+              title="Rounded Rectangle Shape"
             >
               Rounded
             </button>
@@ -1596,17 +1847,48 @@ const CustomEditorPage = () => {
               onMouseDown={(e) => {
                 e.preventDefault();
                 if (activeImgPos?.img) {
-                  activeImgPos.img.style.borderRadius = '50%';
-                  activeImgPos.img.style.objectFit = 'cover';
+                  const img = activeImgPos.img;
+                  img.style.borderRadius = '50%';
+                  img.style.objectFit = 'cover';
                   const side = Math.min(activeImgPos.width, activeImgPos.height);
-                  activeImgPos.img.style.width = `${side}px`;
-                  activeImgPos.img.style.height = `${side}px`;
+                  img.style.width = `${side}px`;
+                  img.style.height = `${side}px`;
+                  const rect = img.getBoundingClientRect();
+                  setActiveImgPos({ ...activeImgPos, width: rect.width, height: rect.height });
                 }
               }}
               className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
-              title="Circle Crop"
+              title="Circle Shape"
             >
               Circle
+            </button>
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault();
+                if (activeImgPos?.img) {
+                  const img = activeImgPos.img;
+                  img.style.borderRadius = '9999px';
+                  img.style.objectFit = 'cover';
+                }
+              }}
+              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
+              title="Pill / Oval Shape"
+            >
+              Pill
+            </button>
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault();
+                if (activeImgPos?.img) {
+                  const img = activeImgPos.img;
+                  img.style.borderRadius = '4px';
+                  img.style.objectFit = 'initial';
+                }
+              }}
+              className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded border border-gray-200 text-[11px]"
+              title="Reset Shape"
+            >
+              Reset
             </button>
 
             <div className="w-[1px] h-4 bg-gray-200 mx-0.5"></div>
@@ -1622,6 +1904,7 @@ const CustomEditorPage = () => {
                   img.style.display = 'block';
                   img.style.clear = 'both';
                   img.style.margin = '16px auto';
+                  img.style.shapeOutside = 'margin-box';
                   const rect = img.getBoundingClientRect();
                   setActiveImgPos({ ...activeImgPos, top: rect.top, left: rect.left });
                 }
@@ -1640,7 +1923,8 @@ const CustomEditorPage = () => {
                   img.style.float = 'left';
                   img.style.display = 'inline-block';
                   img.style.clear = 'none';
-                  img.style.margin = '0 16px 8px 0';
+                  img.style.margin = '8px 16px 8px 0';
+                  img.style.shapeOutside = 'margin-box';
                   const rect = img.getBoundingClientRect();
                   setActiveImgPos({ ...activeImgPos, top: rect.top, left: rect.left });
                 }
@@ -1659,7 +1943,8 @@ const CustomEditorPage = () => {
                   img.style.float = 'right';
                   img.style.display = 'inline-block';
                   img.style.clear = 'none';
-                  img.style.margin = '0 0 8px 16px';
+                  img.style.margin = '8px 0 8px 16px';
+                  img.style.shapeOutside = 'margin-box';
                   const rect = img.getBoundingClientRect();
                   setActiveImgPos({ ...activeImgPos, top: rect.top, left: rect.left });
                 }
@@ -1669,104 +1954,37 @@ const CustomEditorPage = () => {
             >
               Wrap Right
             </button>
-            <button 
-              onMouseDown={(e) => {
-                e.preventDefault();
-                if (activeImgPos?.img) {
-                  const img = activeImgPos.img;
-                  const editorCanvas = editorRef.current?.parentNode;
-                  if (editorCanvas) {
-                    const editorRect = editorCanvas.getBoundingClientRect();
-                    const imgRect = img.getBoundingClientRect();
-                    img.style.position = 'absolute';
-                    img.style.left = `${imgRect.left - editorRect.left}px`;
-                    img.style.top = `${imgRect.top - editorRect.top}px`;
-                    img.style.zIndex = '20';
-                    img.style.margin = '0';
-                  }
-                }
-              }} 
-              className="px-2 py-0.5 bg-blue-100 text-blue-700 font-medium rounded border border-blue-200 text-[11px]"
-              title="Free Float"
-            >
-              Float Free
-            </button>
 
             <div className="w-[1px] h-4 bg-gray-200 mx-0.5"></div>
 
-            {/* Drag to Move Handle */}
+            {/* Toolbar Drag to Move Handle Button */}
             <div
               onMouseDown={(e) => {
-                e.stopPropagation();
-                const img = activeImgPos.img;
-                const editorCanvas = editorRef.current?.parentNode;
-                if (!editorCanvas) return;
-
-                const editorRect = editorCanvas.getBoundingClientRect();
-                const imgRect = img.getBoundingClientRect();
-                const startX = e.clientX;
-                const startY = e.clientY;
-
-                let initialLeft = img.offsetLeft;
-                let initialTop = img.offsetTop;
-
-                if (window.getComputedStyle(img).position !== 'absolute') {
-                  initialLeft = imgRect.left - editorRect.left;
-                  initialTop = imgRect.top - editorRect.top;
-                  img.style.position = 'absolute';
-                  img.style.zIndex = '20';
-                  img.style.margin = '0';
+                const img = activeImgPos?.img;
+                if (img) {
+                  startFreeDragImg(e, img);
                 }
-
-                resizingRef.current = { type: 'free-drag-img', node: img };
-
-                const handleWindowMouseMove = (moveEvent) => {
-                  if (resizingRef.current?.type !== 'free-drag-img') return;
-                  moveEvent.preventDefault();
-                  const deltaX = moveEvent.clientX - startX;
-                  const deltaY = moveEvent.clientY - startY;
-
-                  img.style.left = `${initialLeft + deltaX}px`;
-                  img.style.top = `${initialTop + deltaY}px`;
-
-                  const updatedRect = img.getBoundingClientRect();
-                  setActiveImgPos({
-                    top: updatedRect.top,
-                    left: updatedRect.left,
-                    width: updatedRect.width,
-                    height: updatedRect.height,
-                    img: img
-                  });
-                };
-
-                const handleWindowMouseUp = () => {
-                  resizingRef.current = null;
-                  window.removeEventListener('mousemove', handleWindowMouseMove);
-                  window.removeEventListener('mouseup', handleWindowMouseUp);
-                };
-
-                window.addEventListener('mousemove', handleWindowMouseMove);
-                window.addEventListener('mouseup', handleWindowMouseUp);
               }}
-              className="p-1 bg-blue-600 hover:bg-blue-700 text-white rounded cursor-move shadow flex items-center justify-center"
-              title="Drag to move image freely"
+              className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded cursor-move shadow flex items-center gap-1 font-medium text-[11px]"
+              title="Drag Move Handle to position image anywhere"
             >
               <FiMove size={12} />
+              <span>Move</span>
             </div>
           </div>
 
-          {/* Scale Corner Resize Handle (Bottom-Right) */}
+          {/* Top-Left Corner Resize Handle */}
           <div
             style={{
               position: 'absolute',
-              bottom: '-6px',
-              right: '-6px',
+              top: '-6px',
+              left: '-6px',
               width: '12px',
               height: '12px',
               backgroundColor: '#2563EB',
               border: '2px solid white',
               borderRadius: '2px',
-              cursor: 'se-resize',
+              cursor: 'nw-resize',
               pointerEvents: 'auto'
             }}
             onMouseDown={(e) => {
@@ -1774,7 +1992,62 @@ const CustomEditorPage = () => {
               e.stopPropagation();
               const img = activeImgPos.img;
               const startX = e.clientX;
-              const startY = e.clientY;
+              const startWidth = activeImgPos.width;
+              const startHeight = activeImgPos.height;
+              const aspectRatio = startWidth / startHeight;
+
+              resizingRef.current = { type: 'img-resize' };
+
+              const handleMouseMove = (moveEvent) => {
+                moveEvent.preventDefault();
+                const deltaX = startX - moveEvent.clientX;
+                const newWidth = Math.max(40, startWidth + deltaX);
+                const newHeight = Math.round(newWidth / aspectRatio);
+
+                img.style.width = `${newWidth}px`;
+                img.style.height = `${newHeight}px`;
+
+                const newRect = img.getBoundingClientRect();
+                setActiveImgPos({
+                  top: newRect.top,
+                  left: newRect.left,
+                  width: newRect.width,
+                  height: newRect.height,
+                  img: img
+                });
+              };
+
+              const handleMouseUp = () => {
+                resizingRef.current = null;
+                window.removeEventListener('mousemove', handleMouseMove);
+                window.removeEventListener('mouseup', handleMouseUp);
+              };
+
+              window.addEventListener('mousemove', handleMouseMove);
+              window.addEventListener('mouseup', handleMouseUp);
+            }}
+            title="Drag corner to resize image"
+          />
+
+          {/* Top-Right Corner Resize Handle */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '-6px',
+              right: '-6px',
+              width: '12px',
+              height: '12px',
+              backgroundColor: '#2563EB',
+              border: '2px solid white',
+              borderRadius: '2px',
+              cursor: 'ne-resize',
+              pointerEvents: 'auto'
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const img = activeImgPos.img;
+              const startX = e.clientX;
               const startWidth = activeImgPos.width;
               const startHeight = activeImgPos.height;
               const aspectRatio = startWidth / startHeight;
@@ -1809,7 +2082,223 @@ const CustomEditorPage = () => {
               window.addEventListener('mousemove', handleMouseMove);
               window.addEventListener('mouseup', handleMouseUp);
             }}
-            title="Drag to resize image"
+            title="Drag corner to resize image"
+          />
+
+          {/* Bottom-Left Corner Resize Handle */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '-6px',
+              left: '-6px',
+              width: '12px',
+              height: '12px',
+              backgroundColor: '#2563EB',
+              border: '2px solid white',
+              borderRadius: '2px',
+              cursor: 'sw-resize',
+              pointerEvents: 'auto'
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const img = activeImgPos.img;
+              const startX = e.clientX;
+              const startWidth = activeImgPos.width;
+              const startHeight = activeImgPos.height;
+              const aspectRatio = startWidth / startHeight;
+
+              resizingRef.current = { type: 'img-resize' };
+
+              const handleMouseMove = (moveEvent) => {
+                moveEvent.preventDefault();
+                const deltaX = startX - moveEvent.clientX;
+                const newWidth = Math.max(40, startWidth + deltaX);
+                const newHeight = Math.round(newWidth / aspectRatio);
+
+                img.style.width = `${newWidth}px`;
+                img.style.height = `${newHeight}px`;
+
+                const newRect = img.getBoundingClientRect();
+                setActiveImgPos({
+                  top: newRect.top,
+                  left: newRect.left,
+                  width: newRect.width,
+                  height: newRect.height,
+                  img: img
+                });
+              };
+
+              const handleMouseUp = () => {
+                resizingRef.current = null;
+                window.removeEventListener('mousemove', handleMouseMove);
+                window.removeEventListener('mouseup', handleMouseUp);
+              };
+
+              window.addEventListener('mousemove', handleMouseMove);
+              window.addEventListener('mouseup', handleMouseUp);
+            }}
+            title="Drag corner to resize image"
+          />
+
+          {/* Bottom-Right Corner Resize Handle */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '-6px',
+              right: '-6px',
+              width: '12px',
+              height: '12px',
+              backgroundColor: '#2563EB',
+              border: '2px solid white',
+              borderRadius: '2px',
+              cursor: 'se-resize',
+              pointerEvents: 'auto'
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const img = activeImgPos.img;
+              const startX = e.clientX;
+              const startWidth = activeImgPos.width;
+              const startHeight = activeImgPos.height;
+              const aspectRatio = startWidth / startHeight;
+
+              resizingRef.current = { type: 'img-resize' };
+
+              const handleMouseMove = (moveEvent) => {
+                moveEvent.preventDefault();
+                const deltaX = moveEvent.clientX - startX;
+                const newWidth = Math.max(40, startWidth + deltaX);
+                const newHeight = Math.round(newWidth / aspectRatio);
+
+                img.style.width = `${newWidth}px`;
+                img.style.height = `${newHeight}px`;
+
+                const newRect = img.getBoundingClientRect();
+                setActiveImgPos({
+                  top: newRect.top,
+                  left: newRect.left,
+                  width: newRect.width,
+                  height: newRect.height,
+                  img: img
+                });
+              };
+
+              const handleMouseUp = () => {
+                resizingRef.current = null;
+                window.removeEventListener('mousemove', handleMouseMove);
+                window.removeEventListener('mouseup', handleMouseUp);
+              };
+
+              window.addEventListener('mousemove', handleMouseMove);
+              window.addEventListener('mouseup', handleMouseUp);
+            }}
+            title="Drag corner to resize image"
+          />
+
+          {/* Middle-Right Side Resize Handle */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              right: '-6px',
+              transform: 'translateY(-50%)',
+              width: '12px',
+              height: '12px',
+              backgroundColor: '#2563EB',
+              border: '2px solid white',
+              borderRadius: '2px',
+              cursor: 'ew-resize',
+              pointerEvents: 'auto'
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const img = activeImgPos.img;
+              const startX = e.clientX;
+              const startWidth = activeImgPos.width;
+
+              resizingRef.current = { type: 'img-resize' };
+
+              const handleMouseMove = (moveEvent) => {
+                moveEvent.preventDefault();
+                const deltaX = moveEvent.clientX - startX;
+                const newWidth = Math.max(40, startWidth + deltaX);
+                img.style.width = `${newWidth}px`;
+
+                const newRect = img.getBoundingClientRect();
+                setActiveImgPos({
+                  top: newRect.top,
+                  left: newRect.left,
+                  width: newRect.width,
+                  height: newRect.height,
+                  img: img
+                });
+              };
+
+              const handleMouseUp = () => {
+                resizingRef.current = null;
+                window.removeEventListener('mousemove', handleMouseMove);
+                window.removeEventListener('mouseup', handleMouseUp);
+              };
+
+              window.addEventListener('mousemove', handleMouseMove);
+              window.addEventListener('mouseup', handleMouseUp);
+            }}
+            title="Drag side to resize width"
+          />
+
+          {/* Middle-Bottom Side Resize Handle */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '-6px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '12px',
+              height: '12px',
+              backgroundColor: '#2563EB',
+              border: '2px solid white',
+              borderRadius: '2px',
+              cursor: 'ns-resize',
+              pointerEvents: 'auto'
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const img = activeImgPos.img;
+              const startY = e.clientY;
+              const startHeight = activeImgPos.height;
+
+              resizingRef.current = { type: 'img-resize' };
+
+              const handleMouseMove = (moveEvent) => {
+                moveEvent.preventDefault();
+                const deltaY = moveEvent.clientY - startY;
+                const newHeight = Math.max(30, startHeight + deltaY);
+                img.style.height = `${newHeight}px`;
+
+                const newRect = img.getBoundingClientRect();
+                setActiveImgPos({
+                  top: newRect.top,
+                  left: newRect.left,
+                  width: newRect.width,
+                  height: newRect.height,
+                  img: img
+                });
+              };
+
+              const handleMouseUp = () => {
+                resizingRef.current = null;
+                window.removeEventListener('mousemove', handleMouseMove);
+                window.removeEventListener('mouseup', handleMouseUp);
+              };
+
+              window.addEventListener('mousemove', handleMouseMove);
+              window.addEventListener('mouseup', handleMouseUp);
+            }}
+            title="Drag side to resize height"
           />
         </div>
       )}
@@ -2432,32 +2921,18 @@ const CustomEditorPage = () => {
       )}
       <div
         className="w-full max-w-4xl bg-white rounded-t-xl shadow-md border border-gray-200 p-2 flex flex-wrap items-center gap-2 sticky top-16 z-40 print:hidden"
-        onMouseDown={(e) => {
-          if (!e.target.closest('button')) {
-            e.preventDefault();
-            setActiveListDropdown(null);
-            setIsFontDropdownOpen(false);
-            setIsFontSizeDropdownOpen(false);
-            setIsFontColorDropdownOpen(false);
-            setIsHighlightColorDropdownOpen(false);
-            setIsShadingDropdownOpen(false);
-            setIsBorderDropdownOpen(false);
-            setIsTableDropdownOpen(false);
-            setIsDividerDropdownOpen(false);
-          }
-        }}
       >
 
         {/* Font Controls */}
         <div className="relative flex items-center border-r border-gray-300 pr-2 mr-2 gap-1">
           {/* Font Family Dropdown */}
-          <div className="relative">
+          <div className="relative" data-dropdown-container="font-family">
             <button
               onMouseDown={(e) => {
                 e.preventDefault();
-                setIsFontDropdownOpen(!isFontDropdownOpen);
-                setIsFontSizeDropdownOpen(false);
-                setActiveListDropdown(null);
+                const wasOpen = isFontDropdownOpen;
+                closeAllDropdowns();
+                if (!wasOpen) setIsFontDropdownOpen(true);
               }}
               className="p-1 px-2 rounded flex items-center justify-between w-32 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-sm"
               title="Font Family"
@@ -2473,7 +2948,7 @@ const CustomEditorPage = () => {
                     onMouseDown={(e) => {
                       e.preventDefault();
                       executeCommand('fontName', font);
-                      setIsFontDropdownOpen(false);
+                      closeAllDropdowns();
                     }}
                     className={`w-full text-left px-4 py-2 text-sm hover:bg-blue-50 ${activeFont === font ? 'bg-blue-100 text-blue-700' : ''}`}
                     style={{ fontFamily: font }}
@@ -2486,13 +2961,13 @@ const CustomEditorPage = () => {
           </div>
 
           {/* Font Size Dropdown */}
-          <div className="relative flex items-center">
+          <div className="relative flex items-center" data-dropdown-container="font-size">
             <button
               onMouseDown={(e) => {
                 e.preventDefault();
-                setIsFontSizeDropdownOpen(!isFontSizeDropdownOpen);
-                setIsFontDropdownOpen(false);
-                setActiveListDropdown(null);
+                const wasOpen = isFontSizeDropdownOpen;
+                closeAllDropdowns();
+                if (!wasOpen) setIsFontSizeDropdownOpen(true);
               }}
               className="p-1 px-2 rounded flex items-center justify-between w-16 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-sm"
               title="Font Size"
@@ -2508,6 +2983,7 @@ const CustomEditorPage = () => {
                     onMouseDown={(e) => {
                       e.preventDefault();
                       executeFontSizeCommand(size);
+                      closeAllDropdowns();
                     }}
                     className={`w-full text-center px-2 py-1 text-sm hover:bg-blue-50 ${activeFontSize === size ? 'bg-blue-100 text-blue-700' : ''}`}
                   >
@@ -2522,21 +2998,21 @@ const CustomEditorPage = () => {
         {/* Text Styles (B, I, U only) */}
         <div className="flex items-center gap-1 pr-2">
           <button
-            onMouseDown={(e) => { e.preventDefault(); executeCommand('bold'); }}
+            onMouseDown={(e) => { e.preventDefault(); closeAllDropdowns(); executeCommand('bold'); }}
             className={`p-2 rounded transition-colors ${isBold ? 'bg-blue-100 text-blue-700 shadow-inner' : 'text-gray-700 hover:bg-gray-100'}`}
             title="Bold"
           >
             <FiBold />
           </button>
           <button
-            onMouseDown={(e) => { e.preventDefault(); executeCommand('italic'); }}
+            onMouseDown={(e) => { e.preventDefault(); closeAllDropdowns(); executeCommand('italic'); }}
             className={`p-2 rounded transition-colors ${isItalic ? 'bg-blue-100 text-blue-700 shadow-inner' : 'text-gray-700 hover:bg-gray-100'}`}
             title="Italic"
           >
             <FiItalic />
           </button>
           <button
-            onMouseDown={(e) => { e.preventDefault(); executeCommand('underline'); }}
+            onMouseDown={(e) => { e.preventDefault(); closeAllDropdowns(); executeCommand('underline'); }}
             className={`p-2 rounded transition-colors ${isUnderline ? 'bg-blue-100 text-blue-700 shadow-inner' : 'text-gray-700 hover:bg-gray-100'}`}
             title="Underline"
           >
@@ -2547,16 +3023,13 @@ const CustomEditorPage = () => {
         {/* Colors */}
         <div className="flex items-center gap-1 border-l border-gray-300 pl-2 pr-2">
           {/* Font Color */}
-          <div className="relative flex items-center">
+          <div className="relative flex items-center" data-dropdown-container="font-color">
             <button
               onMouseDown={(e) => {
                 e.preventDefault();
-                setIsFontColorDropdownOpen(!isFontColorDropdownOpen);
-                setIsHighlightColorDropdownOpen(false);
-                setIsShadingDropdownOpen(false);
-                setIsFontDropdownOpen(false);
-                setIsFontSizeDropdownOpen(false);
-                setActiveListDropdown(null);
+                const wasOpen = isFontColorDropdownOpen;
+                closeAllDropdowns();
+                if (!wasOpen) setIsFontColorDropdownOpen(true);
               }}
               className="p-1 px-2 rounded flex flex-col items-center justify-center w-10 h-8 bg-gray-50 border border-transparent hover:bg-gray-100"
               title="Text Color"
@@ -2573,7 +3046,7 @@ const CustomEditorPage = () => {
                       onMouseDown={(e) => {
                         e.preventDefault();
                         executeCommand('foreColor', color);
-                        setIsFontColorDropdownOpen(false);
+                        closeAllDropdowns();
                       }}
                       className="w-4 h-4 rounded-sm border border-gray-300 hover:scale-110 transition-transform"
                       style={{ backgroundColor: color }}
@@ -2586,16 +3059,13 @@ const CustomEditorPage = () => {
           </div>
 
           {/* Highlight Color */}
-          <div className="relative flex items-center">
+          <div className="relative flex items-center" data-dropdown-container="highlight-color">
             <button
               onMouseDown={(e) => {
                 e.preventDefault();
-                setIsHighlightColorDropdownOpen(!isHighlightColorDropdownOpen);
-                setIsFontColorDropdownOpen(false);
-                setIsShadingDropdownOpen(false);
-                setIsFontDropdownOpen(false);
-                setIsFontSizeDropdownOpen(false);
-                setActiveListDropdown(null);
+                const wasOpen = isHighlightColorDropdownOpen;
+                closeAllDropdowns();
+                if (!wasOpen) setIsHighlightColorDropdownOpen(true);
               }}
               className="p-1 px-2 rounded flex flex-col items-center justify-center w-10 h-8 bg-gray-50 border border-transparent hover:bg-gray-100"
               title="Text Highlight Color"
@@ -2611,7 +3081,7 @@ const CustomEditorPage = () => {
                       e.preventDefault();
                       executeCommand('backColor', 'transparent');
                       executeCommand('hiliteColor', 'transparent');
-                      setIsHighlightColorDropdownOpen(false);
+                      closeAllDropdowns();
                     }}
                     className="col-span-10 text-xs text-center border border-gray-300 rounded mb-1 py-0.5 hover:bg-gray-100"
                   >
@@ -2624,7 +3094,7 @@ const CustomEditorPage = () => {
                         e.preventDefault();
                         executeCommand('hiliteColor', color);
                         executeCommand('backColor', color);
-                        setIsHighlightColorDropdownOpen(false);
+                        closeAllDropdowns();
                       }}
                       className="w-4 h-4 rounded-sm border border-gray-300 hover:scale-110 transition-transform"
                       style={{ backgroundColor: color }}
@@ -2637,17 +3107,13 @@ const CustomEditorPage = () => {
           </div>
 
           {/* Paragraph Shading */}
-          <div className="relative flex items-center">
+          <div className="relative flex items-center" data-dropdown-container="shading-color">
             <button
               onMouseDown={(e) => {
                 e.preventDefault();
-                setIsShadingDropdownOpen(!isShadingDropdownOpen);
-                setIsHighlightColorDropdownOpen(false);
-                setIsFontColorDropdownOpen(false);
-                setIsFontDropdownOpen(false);
-                setIsFontSizeDropdownOpen(false);
-                setIsBorderDropdownOpen(false);
-                setActiveListDropdown(null);
+                const wasOpen = isShadingDropdownOpen;
+                closeAllDropdowns();
+                if (!wasOpen) setIsShadingDropdownOpen(true);
               }}
               className="p-1 px-2 rounded flex flex-col items-center justify-center w-10 h-8 bg-gray-50 border border-transparent hover:bg-gray-100"
               title="Paragraph Shading"
@@ -2662,6 +3128,7 @@ const CustomEditorPage = () => {
                     onMouseDown={(e) => {
                       e.preventDefault();
                       executeShadingCommand('transparent');
+                      closeAllDropdowns();
                     }}
                     className="col-span-10 text-xs text-center border border-gray-300 rounded mb-1 py-0.5 hover:bg-gray-100"
                   >
@@ -2673,6 +3140,7 @@ const CustomEditorPage = () => {
                       onMouseDown={(e) => {
                         e.preventDefault();
                         executeShadingCommand(color);
+                        closeAllDropdowns();
                       }}
                       className="w-4 h-4 rounded-sm border border-gray-300 hover:scale-110 transition-transform"
                       style={{ backgroundColor: color }}
@@ -2685,17 +3153,13 @@ const CustomEditorPage = () => {
           </div>
 
           {/* Paragraph Borders */}
-          <div className="relative flex items-center ml-1">
+          <div className="relative flex items-center ml-1" data-dropdown-container="border">
             <button
               onMouseDown={(e) => {
                 e.preventDefault();
-                setIsBorderDropdownOpen(!isBorderDropdownOpen);
-                setIsShadingDropdownOpen(false);
-                setIsHighlightColorDropdownOpen(false);
-                setIsFontColorDropdownOpen(false);
-                setIsFontDropdownOpen(false);
-                setIsFontSizeDropdownOpen(false);
-                setActiveListDropdown(null);
+                const wasOpen = isBorderDropdownOpen;
+                closeAllDropdowns();
+                if (!wasOpen) setIsBorderDropdownOpen(true);
               }}
               className={`p-1 px-2 rounded flex items-center justify-center gap-1 h-8 bg-gray-50 border border-transparent hover:bg-gray-100 ${activeBorder !== 'none' ? 'bg-blue-100 text-blue-700' : 'text-gray-700'}`}
               title="Borders"
@@ -2714,7 +3178,7 @@ const CustomEditorPage = () => {
             {isBorderDropdownOpen && (
               <div className="absolute top-full mt-1 left-0 bg-white shadow-lg border border-gray-200 rounded py-1 z-50 w-44 flex flex-col print:hidden">
                 <button
-                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('bottom'); }}
+                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('bottom'); closeAllDropdowns(); }}
                   className={`px-3 py-1.5 text-left text-sm hover:bg-blue-50 flex items-center gap-2.5 ${activeBorder === 'bottom' ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -2724,7 +3188,7 @@ const CustomEditorPage = () => {
                   Bottom Border
                 </button>
                 <button
-                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('top'); }}
+                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('top'); closeAllDropdowns(); }}
                   className={`px-3 py-1.5 text-left text-sm hover:bg-blue-50 flex items-center gap-2.5 ${activeBorder === 'top' ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -2734,7 +3198,7 @@ const CustomEditorPage = () => {
                   Top Border
                 </button>
                 <button
-                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('left'); }}
+                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('left'); closeAllDropdowns(); }}
                   className={`px-3 py-1.5 text-left text-sm hover:bg-blue-50 flex items-center gap-2.5 ${activeBorder === 'left' ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -2744,7 +3208,7 @@ const CustomEditorPage = () => {
                   Left Border
                 </button>
                 <button
-                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('right'); }}
+                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('right'); closeAllDropdowns(); }}
                   className={`px-3 py-1.5 text-left text-sm hover:bg-blue-50 flex items-center gap-2.5 ${activeBorder === 'right' ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -2754,7 +3218,7 @@ const CustomEditorPage = () => {
                   Right Border
                 </button>
                 <button
-                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('all'); }}
+                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('all'); closeAllDropdowns(); }}
                   className={`px-3 py-1.5 text-left text-sm hover:bg-blue-50 flex items-center gap-2.5 ${activeBorder === 'all' ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -2764,7 +3228,7 @@ const CustomEditorPage = () => {
                 </button>
                 <div className="my-1 border-t border-gray-200"></div>
                 <button
-                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('none'); }}
+                  onMouseDown={(e) => { e.preventDefault(); executeBorderCommand('none'); closeAllDropdowns(); }}
                   className={`px-3 py-1.5 text-left text-sm hover:bg-blue-50 flex items-center gap-2.5 ${activeBorder === 'none' ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-700'}`}
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -2780,21 +3244,21 @@ const CustomEditorPage = () => {
         {/* Alignment */}
         <div className="flex items-center gap-1 border-l border-gray-300 pl-2 pr-2">
           <button
-            onMouseDown={(e) => { e.preventDefault(); executeCommand('justifyLeft'); }}
+            onMouseDown={(e) => { e.preventDefault(); closeAllDropdowns(); executeCommand('justifyLeft'); }}
             className={`p-2 rounded transition-colors ${isAlignLeft ? 'bg-blue-100 text-blue-700 shadow-inner' : 'text-gray-700 hover:bg-gray-100'}`}
             title="Align Left"
           >
             <FiAlignLeft />
           </button>
           <button
-            onMouseDown={(e) => { e.preventDefault(); executeCommand('justifyCenter'); }}
+            onMouseDown={(e) => { e.preventDefault(); closeAllDropdowns(); executeCommand('justifyCenter'); }}
             className={`p-2 rounded transition-colors ${isAlignCenter ? 'bg-blue-100 text-blue-700 shadow-inner' : 'text-gray-700 hover:bg-gray-100'}`}
             title="Align Center"
           >
             <FiAlignCenter />
           </button>
           <button
-            onMouseDown={(e) => { e.preventDefault(); executeCommand('justifyRight'); }}
+            onMouseDown={(e) => { e.preventDefault(); closeAllDropdowns(); executeCommand('justifyRight'); }}
             className={`p-2 rounded transition-colors ${isAlignRight ? 'bg-blue-100 text-blue-700 shadow-inner' : 'text-gray-700 hover:bg-gray-100'}`}
             title="Align Right"
           >
@@ -2805,9 +3269,9 @@ const CustomEditorPage = () => {
         {/* Lists */}
         <div className="flex items-center gap-1 border-l border-gray-300 pl-2 pr-2">
           {/* Bullets Dropdown */}
-          <div className="relative flex items-center">
+          <div className="relative flex items-center" data-dropdown-container="bullets-list">
             <button
-              onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertUnorderedList', 'disc'); }}
+              onMouseDown={(e) => { e.preventDefault(); closeAllDropdowns(); executeListCommand('insertUnorderedList', 'disc'); }}
               className={`p-2 rounded-l transition-colors ${isUnorderedList ? 'bg-blue-100 text-blue-700 shadow-inner' : 'text-gray-700 hover:bg-gray-100'}`}
               title="Bullets"
             >
@@ -2816,7 +3280,9 @@ const CustomEditorPage = () => {
             <button
               onMouseDown={(e) => {
                 e.preventDefault();
-                setActiveListDropdown(activeListDropdown === 'bullets' ? null : 'bullets');
+                const wasOpen = activeListDropdown === 'bullets';
+                closeAllDropdowns();
+                if (!wasOpen) setActiveListDropdown('bullets');
               }}
               className={`p-2 rounded-r transition-colors ${activeListDropdown === 'bullets' ? 'bg-gray-200' : 'text-gray-700 hover:bg-gray-100'}`}
             >
@@ -2824,17 +3290,17 @@ const CustomEditorPage = () => {
             </button>
             {activeListDropdown === 'bullets' && (
               <div className="absolute top-full mt-1 left-0 bg-white shadow-lg border border-gray-200 rounded py-1 z-50 w-32 flex flex-col print:hidden">
-                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertUnorderedList', 'disc'); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-2">Disc</button>
-                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertUnorderedList', 'circle'); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-2">Circle</button>
-                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertUnorderedList', 'square'); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-2">Square</button>
+                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertUnorderedList', 'disc'); closeAllDropdowns(); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-2">Disc</button>
+                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertUnorderedList', 'circle'); closeAllDropdowns(); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-2">Circle</button>
+                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertUnorderedList', 'square'); closeAllDropdowns(); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-2">Square</button>
               </div>
             )}
           </div>
 
           {/* Numbered Dropdown */}
-          <div className="relative flex items-center">
+          <div className="relative flex items-center" data-dropdown-container="numbered-list">
             <button
-              onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertOrderedList', 'decimal'); }}
+              onMouseDown={(e) => { e.preventDefault(); closeAllDropdowns(); executeListCommand('insertOrderedList', 'decimal'); }}
               className={`p-2 rounded-l transition-colors ${isOrderedList ? 'bg-blue-100 text-blue-700 shadow-inner' : 'text-gray-700 hover:bg-gray-100'}`}
               title="Numbered List"
             >
@@ -2843,7 +3309,9 @@ const CustomEditorPage = () => {
             <button
               onMouseDown={(e) => {
                 e.preventDefault();
-                setActiveListDropdown(activeListDropdown === 'numbered' ? null : 'numbered');
+                const wasOpen = activeListDropdown === 'numbered';
+                closeAllDropdowns();
+                if (!wasOpen) setActiveListDropdown('numbered');
               }}
               className={`p-2 rounded-r transition-colors ${activeListDropdown === 'numbered' ? 'bg-gray-200' : 'text-gray-700 hover:bg-gray-100'}`}
             >
@@ -2851,11 +3319,11 @@ const CustomEditorPage = () => {
             </button>
             {activeListDropdown === 'numbered' && (
               <div className="absolute top-full mt-1 left-0 bg-white shadow-lg border border-gray-200 rounded py-1 z-50 w-40 flex flex-col print:hidden">
-                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertOrderedList', 'decimal'); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50">1, 2, 3</button>
-                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertOrderedList', 'upper-alpha'); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50">A, B, C</button>
-                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertOrderedList', 'lower-alpha'); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50">a, b, c</button>
-                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertOrderedList', 'upper-roman'); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50">I, II, III</button>
-                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertOrderedList', 'lower-roman'); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50">i, ii, iii</button>
+                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertOrderedList', 'decimal'); closeAllDropdowns(); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50">1, 2, 3</button>
+                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertOrderedList', 'upper-alpha'); closeAllDropdowns(); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50">A, B, C</button>
+                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertOrderedList', 'lower-alpha'); closeAllDropdowns(); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50">a, b, c</button>
+                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertOrderedList', 'upper-roman'); closeAllDropdowns(); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50">I, II, III</button>
+                <button onMouseDown={(e) => { e.preventDefault(); executeListCommand('insertOrderedList', 'lower-roman'); closeAllDropdowns(); }} className="px-4 py-2 text-left text-sm hover:bg-blue-50">i, ii, iii</button>
               </div>
             )}
           </div>
@@ -2863,20 +3331,17 @@ const CustomEditorPage = () => {
 
         {/* Insert Table Grid Dropdown */}
         <div className="flex items-center border-l border-gray-300 pl-2 pr-2">
-          <div className="relative flex items-center">
+          <div className="relative flex items-center" data-dropdown-container="table">
             <button
               onMouseDown={(e) => {
                 e.preventDefault();
-                setIsTableDropdownOpen(!isTableDropdownOpen);
-                setIsBorderDropdownOpen(false);
-                setIsShadingDropdownOpen(false);
-                setIsHighlightColorDropdownOpen(false);
-                setIsFontColorDropdownOpen(false);
-                setIsFontDropdownOpen(false);
-                setIsFontSizeDropdownOpen(false);
-                setActiveListDropdown(null);
-                setHoveredRows(0);
-                setHoveredCols(0);
+                const wasOpen = isTableDropdownOpen;
+                closeAllDropdowns();
+                if (!wasOpen) {
+                  setIsTableDropdownOpen(true);
+                  setHoveredRows(0);
+                  setHoveredCols(0);
+                }
               }}
               className={`p-1.5 px-2 rounded flex items-center gap-1 bg-gray-50 border border-transparent hover:bg-gray-100 text-gray-700 text-sm ${isTableDropdownOpen ? 'bg-blue-100 text-blue-700 shadow-inner' : ''}`}
               title="Insert Table"
@@ -2918,6 +3383,7 @@ const CustomEditorPage = () => {
                             e.preventDefault();
                             e.stopPropagation();
                             insertTable(rowNum, colNum);
+                            closeAllDropdowns();
                           }}
                           className={`w-5 h-5 rounded-sm border cursor-pointer transition-colors p-0 ${isHighlighted
                               ? 'bg-blue-500 border-blue-600'
@@ -2949,6 +3415,7 @@ const CustomEditorPage = () => {
           <button
             onMouseDown={(e) => {
               e.preventDefault();
+              closeAllDropdowns();
               const selection = window.getSelection();
               if (selection && selection.rangeCount > 0) {
                 savedSelection.current = selection.getRangeAt(0);
@@ -2967,19 +3434,13 @@ const CustomEditorPage = () => {
 
         {/* Insert Divider Line Dropdown (Horizontal & Vertical) */}
         <div className="flex items-center border-l border-gray-300 pl-2 pr-2">
-          <div className="relative flex items-center">
+          <div className="relative flex items-center" data-dropdown-container="divider">
             <button
               onMouseDown={(e) => {
                 e.preventDefault();
-                setIsDividerDropdownOpen(!isDividerDropdownOpen);
-                setIsTableDropdownOpen(false);
-                setIsBorderDropdownOpen(false);
-                setIsShadingDropdownOpen(false);
-                setIsHighlightColorDropdownOpen(false);
-                setIsFontColorDropdownOpen(false);
-                setIsFontDropdownOpen(false);
-                setIsFontSizeDropdownOpen(false);
-                setActiveListDropdown(null);
+                const wasOpen = isDividerDropdownOpen;
+                closeAllDropdowns();
+                if (!wasOpen) setIsDividerDropdownOpen(true);
               }}
               className={`p-1.5 px-2 rounded flex items-center gap-1 bg-gray-50 border border-transparent hover:bg-gray-100 text-gray-700 text-sm ${isDividerDropdownOpen ? 'bg-blue-100 text-blue-700 shadow-inner' : ''}`}
               title="Insert Divider Line"
@@ -3004,6 +3465,7 @@ const CustomEditorPage = () => {
                       onMouseDown={(e) => {
                         e.preventDefault();
                         insertDividerLine('horizontal', { style: 'solid', thickness: activeLineThickness, color: activeLineColor });
+                        closeAllDropdowns();
                       }}
                       className="w-full p-1.5 hover:bg-gray-50 border border-gray-200 rounded flex items-center justify-between text-xs text-gray-700 group"
                     >
@@ -3014,6 +3476,7 @@ const CustomEditorPage = () => {
                       onMouseDown={(e) => {
                         e.preventDefault();
                         insertDividerLine('horizontal', { style: 'dashed', thickness: activeLineThickness, color: activeLineColor });
+                        closeAllDropdowns();
                       }}
                       className="w-full p-1.5 hover:bg-gray-50 border border-gray-200 rounded flex items-center justify-between text-xs text-gray-700 group"
                     >
@@ -3024,6 +3487,7 @@ const CustomEditorPage = () => {
                       onMouseDown={(e) => {
                         e.preventDefault();
                         insertDividerLine('horizontal', { style: 'dotted', thickness: activeLineThickness, color: activeLineColor });
+                        closeAllDropdowns();
                       }}
                       className="w-full p-1.5 hover:bg-gray-50 border border-gray-200 rounded flex items-center justify-between text-xs text-gray-700 group"
                     >
@@ -3034,6 +3498,7 @@ const CustomEditorPage = () => {
                       onMouseDown={(e) => {
                         e.preventDefault();
                         insertDividerLine('horizontal', { style: 'double', color: activeLineColor });
+                        closeAllDropdowns();
                       }}
                       className="w-full p-1.5 hover:bg-gray-50 border border-gray-200 rounded flex items-center justify-between text-xs text-gray-700 group"
                     >
@@ -3044,6 +3509,7 @@ const CustomEditorPage = () => {
                       onMouseDown={(e) => {
                         e.preventDefault();
                         insertDividerLine('horizontal', { style: 'gradient', color: activeLineColor });
+                        closeAllDropdowns();
                       }}
                       className="w-full p-1.5 hover:bg-gray-50 border border-gray-200 rounded flex items-center justify-between text-xs text-gray-700 group"
                     >
@@ -3061,6 +3527,7 @@ const CustomEditorPage = () => {
                       onMouseDown={(e) => {
                         e.preventDefault();
                         insertDividerLine('vertical', { style: 'solid', height: '32px', thickness: activeLineThickness, color: activeLineColor });
+                        closeAllDropdowns();
                       }}
                       className="p-1.5 hover:bg-gray-50 border border-gray-200 rounded flex items-center justify-center gap-2 text-xs text-gray-700"
                     >
@@ -3071,6 +3538,7 @@ const CustomEditorPage = () => {
                       onMouseDown={(e) => {
                         e.preventDefault();
                         insertDividerLine('vertical', { style: 'dashed', height: '32px', thickness: activeLineThickness, color: activeLineColor });
+                        closeAllDropdowns();
                       }}
                       className="p-1.5 hover:bg-gray-50 border border-gray-200 rounded flex items-center justify-center gap-2 text-xs text-gray-700"
                     >
@@ -3131,7 +3599,7 @@ const CustomEditorPage = () => {
 
         {/* Print / Save */}
         <div className="flex-1 flex justify-end">
-          <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm">
+          <button onClick={() => { closeAllDropdowns(); handlePrint(); }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm">
             🖨️ Print / Save PDF
           </button>
         </div>
@@ -3190,10 +3658,8 @@ const CustomEditorPage = () => {
           onClick={handleEditorCanvasClick}
           onDoubleClick={(e) => { handleEditorCanvasClick(e); handleCanvasDoubleClick(e); }}
           onDragStart={(e) => {
-            if (e.target && e.target.nodeName === 'IMG') {
-              draggedNodeRef.current = e.target;
-              e.dataTransfer.setData('text/plain', 'image-drag');
-              e.dataTransfer.effectAllowed = 'move';
+            if (e.target && (e.target.nodeName === 'IMG' || e.target.nodeName === 'TABLE' || e.target.closest('table'))) {
+              e.preventDefault();
             }
           }}
           onDragOver={(e) => {

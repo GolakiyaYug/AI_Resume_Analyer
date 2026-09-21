@@ -250,3 +250,13 @@
   padding-left: 1.5rem !important;
   margin-top: 0.25rem !important;
 }
+
+/* =========================================================
+   IMAGE OBSTACLE TEXT WRAPPING & COLLISION PREVENTION
+   Ensures inserted images act as solid layout boundaries
+   so text lines never flow behind or across images.
+   ========================================================= */
+[contenteditable] img {
+  max-width: 100%;
+  shape-outside: margin-box;
+}
