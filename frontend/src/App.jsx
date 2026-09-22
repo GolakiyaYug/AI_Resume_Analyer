@@ -11,6 +11,7 @@ import AnalyzePage from './features/analysis/AnalyzePage';
 import ForgotPasswordPage from './features/auth/ForgotPasswordPage';
 import ProfilePage from './features/profile/ProfilePage';
 import CustomEditorPage from './features/editor/CustomEditorPage';
+import CareerToolsPage from './features/career-tools/CareerToolsPage';
 
 function App() {
   return (
@@ -64,6 +65,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <CustomEditorPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/career-tools"
+                element={
+                  <ProtectedRoute>
+                    <CareerToolsPage />
                   </ProtectedRoute>
                 }
               />

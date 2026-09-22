@@ -26,9 +26,12 @@ ACTION_WORDS = {
     "led", "managed", "optimized", "automated", "delivered", "increased",
 }
 COMMON_SKILLS = {
-    "python", "java", "javascript", "typescript", "react", "node", "sql",
-    "flask", "django", "aws", "docker", "git", "machine learning", "excel",
-    "html", "css", "c++", "communication", "leadership",
+    "python", "java", "javascript", "typescript", "react", "vue", "angular", "node", "express", "next.js", "html", "css", "tailwind", "bootstrap",
+    "sql", "postgresql", "mysql", "mongodb", "redis", "sqlite",
+    "numpy", "pandas", "scikit-learn", "pytorch", "tensorflow", "keras", "deep learning", "machine learning", "nlp", "opencv", "data analysis", "power bi", "tableau", "excel", "statistics",
+    "flask", "django", "fastapi", "aws", "azure", "gcp", "docker", "kubernetes", "terraform", "git", "c++", "c#", "go", "rust", "swift", "kotlin",
+    "figma", "ui/ux", "ux", "ui", "photoshop", "illustrator", "wireframing", "user research", "design systems",
+    "communication", "leadership", "problem solving",
 }
 ROLE_SKILLS = {
     "Frontend Developer": {"javascript", "typescript", "react", "html", "css"},
