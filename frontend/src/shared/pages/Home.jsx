@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const Home = () => {
@@ -22,40 +21,6 @@ const Home = () => {
         Analyze your existing resume and get AI-powered feedback to land your dream job.
       </p>
 
-      <div className="flex justify-center flex-wrap gap-4">
-        {isAuthenticated ? (
-          <>
-            <Link
-              to="/builder"
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 shadow-lg transition-all hover:-translate-y-1"
-            >
-              ✏️ Create Resume
-            </Link>
-            <Link
-              to="/my-resumes"
-              className="bg-white text-blue-600 border border-blue-600 px-8 py-3 rounded-lg text-lg font-semibold hover:bg-blue-50 shadow-lg transition-all hover:-translate-y-1"
-            >
-              📁 My Saved Resumes
-            </Link>
-          </>
-        ) : (
-          <>
-            <Link
-              to="/signup"
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 shadow-lg transition-all hover:-translate-y-1"
-            >
-              🚀 Sign Up Free
-            </Link>
-            <Link
-              to="/login"
-              className="bg-white text-blue-600 border border-blue-600 px-8 py-3 rounded-lg text-lg font-semibold hover:bg-blue-50 shadow-lg transition-all hover:-translate-y-1"
-            >
-              Login to Get Started
-            </Link>
-          </>
-        )}
-      </div>
-
       {/* Feature cards */}
       <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
         <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all">
@@ -72,6 +37,108 @@ const Home = () => {
           <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center text-2xl font-bold mb-4">💾</div>
           <h3 className="text-xl font-bold mb-2">Cloud Saved</h3>
           <p className="text-gray-600">Save your resumes to your account and access them anytime. Your work is never lost.</p>
+        </div>
+      </div>
+
+      {/* Quick Stats Bar */}
+      <div className="mt-16 bg-white rounded-2xl shadow-md border border-gray-100 p-8 text-center">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+          <div className="p-2">
+            <div className="text-3xl md:text-4xl font-extrabold text-blue-600 mb-1">50+</div>
+            <div className="text-sm font-semibold text-gray-700">Resume Templates</div>
+            <div className="text-xs text-gray-500 mt-1">ATS-Friendly & Modern</div>
+          </div>
+          <div className="p-2">
+            <div className="text-3xl md:text-4xl font-extrabold text-blue-600 mb-1">95%</div>
+            <div className="text-sm font-semibold text-gray-700">ATS Pass Rate</div>
+            <div className="text-xs text-gray-500 mt-1">Optimized Formatting</div>
+          </div>
+          <div className="p-2">
+            <div className="text-3xl md:text-4xl font-extrabold text-blue-600 mb-1">4.9/5</div>
+            <div className="text-sm font-semibold text-gray-700">User Rating</div>
+            <div className="text-xs text-gray-500 mt-1">From 10,000+ Job Seekers</div>
+          </div>
+          <div className="p-2">
+            <div className="text-3xl md:text-4xl font-extrabold text-blue-600 mb-1">100%</div>
+            <div className="text-sm font-semibold text-gray-700">Cloud Storage</div>
+            <div className="text-xs text-gray-500 mt-1">Secure & Access Anytime</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Career Tools Shortcut Row */}
+      <div className="mt-20">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Quick Career Tools</h2>
+          <p className="text-gray-600 text-lg max-w-xl mx-auto">
+            Supercharge your job search with our AI-powered interview preparation and cover letter builder.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+          {/* AI Interview Prep Card */}
+          <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all">
+            <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-3xl mb-5">
+              🎙️
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">AI Interview Prep</h3>
+            <p className="text-gray-600 leading-relaxed">
+              Generate domain-specific technical & behavioral interview questions tailored directly to your target role and resume skills. Practice with instant AI answers.
+            </p>
+          </div>
+
+          {/* Cover Letter Generator Card */}
+          <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all">
+            <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-3xl mb-5">
+              ✉️
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">Cover Letter Generator</h3>
+            <p className="text-gray-600 leading-relaxed">
+              Create tailored, compelling cover letters in seconds using customized tone settings, target company details, and AI skill extraction.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* How It Works Guide */}
+      <div className="mt-24 mb-8 text-left">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-extrabold text-gray-900 mb-2">How It Works</h2>
+          <p className="text-gray-600 text-lg max-w-xl mx-auto">
+            Build your professional resume in 3 simple steps.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-all relative">
+            <div className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center text-xl font-extrabold mb-6 shadow-md">
+              1
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-3">Pick a Template or Upload</h3>
+            <p className="text-gray-600 leading-relaxed">
+              Select from over 50+ professionally formatted ATS templates or upload your existing resume to parse and improve.
+            </p>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-all relative">
+            <div className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center text-xl font-extrabold mb-6 shadow-md">
+              2
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-3">Customize with AI Assistance</h3>
+            <p className="text-gray-600 leading-relaxed">
+              Use smart skill analysis, live formatting preview, and real-time ATS feedback to tailor your resume for top employers.
+            </p>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-all relative">
+            <div className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center text-xl font-extrabold mb-6 shadow-md">
+              3
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-3">Download & Ace Interviews</h3>
+            <p className="text-gray-600 leading-relaxed">
+              Export high-resolution PDFs ready for application portals, and utilize our AI interview prep tool to land the job.
+            </p>
+          </div>
         </div>
       </div>
     </div>
