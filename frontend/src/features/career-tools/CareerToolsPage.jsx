@@ -10,7 +10,8 @@ const GLOBAL_SKILLS_LIST = [
   'nlp', 'opencv', 'data analysis', 'power bi', 'tableau', 'excel', 'statistics', 'flask', 'django', 'fastapi',
   'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'terraform', 'git', 'c++', 'c#', 'go', 'rust', 'swift', 'kotlin',
   'figma', 'ui/ux', 'ux', 'ui', 'photoshop', 'illustrator', 'wireframing', 'user research', 'design systems',
-  'communication', 'leadership', 'problem solving'
+  'communication', 'leadership', 'problem solving',
+  'ci/cd', 'apache spark', 'spark', 'etl', 'airflow', 'big data', 'rest api', 'databases'
 ];
 
 // Canonical Display Formatting Map
@@ -76,7 +77,15 @@ const CANONICAL_SKILL_NAMES = {
   'design systems': 'Design Systems',
   'communication': 'Communication',
   'leadership': 'Leadership',
-  'problem solving': 'Problem Solving'
+  'problem solving': 'Problem Solving',
+  'ci/cd': 'CI/CD Pipelines',
+  'apache spark': 'Apache Spark',
+  'spark': 'Apache Spark',
+  'etl': 'ETL Pipelines',
+  'airflow': 'Apache Airflow',
+  'big data': 'Big Data',
+  'rest api': 'REST APIs',
+  'databases': 'Databases'
 };
 
 // Irrelevant noise words filter
@@ -88,6 +97,28 @@ const NOISE_WORDS = new Set([
 
 // Role Progressive Roadmap Definitions
 const ROLE_PROGRESSIVE_ROADMAP = {
+  'Cloud / DevOps Engineer': [
+    { skill: 'git', title: 'Phase 1: Linux & Version Control', desc: 'Master Linux CLI, shell scripting, and Git workflows.' },
+    { skill: 'aws', title: 'Phase 2: Cloud Infrastructure (AWS/Azure)', desc: 'Provision cloud servers, virtual networks, storage buckets, and IAM security.' },
+    { skill: 'docker', title: 'Phase 3: Containerization with Docker', desc: 'Package applications into lightweight, reproducible Docker containers.' },
+    { skill: 'kubernetes', title: 'Phase 4: Kubernetes Cluster Orchestration', desc: 'Manage scalable container workloads, pods, services, and ingress controllers.' },
+    { skill: 'terraform', title: 'Phase 5: Infrastructure as Code (Terraform)', desc: 'Automate infrastructure provisioning with declarative Terraform scripts.' },
+    { skill: 'ci/cd', title: 'Phase 6: CI/CD Automated Pipelines', desc: 'Build automated continuous integration & continuous deployment pipelines.' }
+  ],
+  'Full Stack Developer': [
+    { skill: 'javascript', title: 'Phase 1: Modern JavaScript & HTML/CSS', desc: 'Master ES6+ syntax, async programming, and DOM manipulation.' },
+    { skill: 'react', title: 'Phase 2: React & Next.js Frontend', desc: 'Build reactive UI component hierarchies with state hooks and Next.js.' },
+    { skill: 'node', title: 'Phase 3: Node.js & Express REST APIs', desc: 'Develop scalable backend web services, routes, and validation middleware.' },
+    { skill: 'sql', title: 'Phase 4: Database Modeling & Integration', desc: 'Integrate PostgreSQL and MongoDB with ORMs like Prisma or Mongoose.' },
+    { skill: 'express', title: 'Phase 5: Full Stack Auth & Security', desc: 'Implement JWT authentication, CORS, rate limiting, and RBAC authorization.' }
+  ],
+  'Data Engineer': [
+    { skill: 'sql', title: 'Phase 1: Advanced SQL & Data Modeling', desc: 'Master CTEs, window functions, query tuning, and schema design.' },
+    { skill: 'python', title: 'Phase 2: Python Data Pipeline Scripting', desc: 'Build robust Python scripts to extract, transform, and clean raw data.' },
+    { skill: 'etl', title: 'Phase 3: Scalable ETL Pipeline Design', desc: 'Architect robust ETL & ELT data ingestion pipelines.' },
+    { skill: 'apache spark', title: 'Phase 4: Big Data Processing with Spark', desc: 'Process distributed datasets at scale using PySpark.' },
+    { skill: 'airflow', title: 'Phase 5: Workflow Orchestration with Airflow', desc: 'Schedule and monitor complex data DAG workflows using Apache Airflow.' }
+  ],
   'AI/ML Engineer': [
     { skill: 'sql', title: 'Phase 1: SQL & Database Querying', desc: 'Master SQL queries, CTEs, window functions, and database schema design.' },
     { skill: 'python', title: 'Phase 1: Python Core & Data Structures', desc: 'Solidify advanced Python syntax, OOP idioms, and algorithm efficiency.' },
@@ -142,6 +173,36 @@ const ROLE_PROGRESSIVE_ROADMAP = {
 
 // Target Job Role Skill Profiles & Competency Definitions
 const ROLE_SKILL_PROFILES = {
+  'Cloud / DevOps Engineer': {
+    targetRole: 'Cloud / DevOps Engineer',
+    icon: '☁️',
+    requiredSkills: ['aws', 'azure', 'docker', 'kubernetes', 'ci/cd', 'terraform', 'git', 'python'],
+    competencies: [
+      { name: 'Cloud Platforms & Infrastructure', skills: ['aws', 'azure', 'gcp', 'terraform'] },
+      { name: 'Containerization & Orchestration', skills: ['docker', 'kubernetes'] },
+      { name: 'CI/CD & Automation', skills: ['ci/cd', 'git', 'python'] }
+    ]
+  },
+  'Full Stack Developer': {
+    targetRole: 'Full Stack Developer',
+    icon: '💻',
+    requiredSkills: ['react', 'next.js', 'javascript', 'typescript', 'node', 'express', 'rest api', 'sql', 'mongodb', 'postgresql'],
+    competencies: [
+      { name: 'Frontend Engineering', skills: ['react', 'next.js', 'javascript', 'typescript', 'html', 'css'] },
+      { name: 'Backend APIs & Services', skills: ['node', 'express', 'rest api'] },
+      { name: 'Database Systems', skills: ['sql', 'postgresql', 'mysql', 'mongodb'] }
+    ]
+  },
+  'Data Engineer': {
+    targetRole: 'Data Engineer',
+    icon: '🗄️',
+    requiredSkills: ['sql', 'python', 'etl', 'apache spark', 'spark', 'airflow', 'big data', 'postgresql', 'mongodb'],
+    competencies: [
+      { name: 'SQL & Data Warehousing', skills: ['sql', 'postgresql', 'mysql'] },
+      { name: 'Big Data & ETL Processing', skills: ['python', 'etl', 'apache spark', 'spark', 'big data'] },
+      { name: 'Pipeline Orchestration', skills: ['airflow', 'docker', 'aws'] }
+    ]
+  },
   'AI/ML Engineer': {
     targetRole: 'AI/ML Engineer',
     icon: '🤖',
@@ -216,39 +277,30 @@ const ROLE_SKILL_PROFILES = {
 const CAREER_DATABASE = {
   'ai-ml-engineer': {
     title: 'AI/ML Engineer',
-    matchScore: 85,
+    matchScore: 92,
     tagline: 'Design, train, and deploy machine learning models and neural networks.',
+    coreSkills: ['python', 'machine learning', 'deep learning', 'pytorch', 'tensorflow', 'nlp', 'scikit-learn', 'numpy', 'pandas'],
+    secondarySkills: ['sql', 'fastapi', 'docker', 'git', 'c++'],
+    requiredSkills: ['python', 'machine learning', 'deep learning', 'pytorch', 'tensorflow', 'nlp', 'scikit-learn', 'numpy', 'pandas', 'sql', 'fastapi', 'docker'],
     matchedSkills: ['Python', 'Machine Learning', 'Problem Solving', 'Data Analysis', 'Git'],
     skillsToDevelop: ['PyTorch / TensorFlow', 'Deep Learning', 'NLP & LLMs', 'Docker', 'FastAPI Model Serving'],
     roadmap: [
-      { step: 1, title: 'Python', desc: 'Master core Python syntax, OOP concepts, data structures, and algorithms.' },
-      { step: 2, title: 'NumPy / Pandas', desc: 'Data manipulation, vector math, cleaning, and exploratory data analysis.' },
-      { step: 3, title: 'Machine Learning', desc: 'Supervised & unsupervised algorithms with Scikit-Learn (Regression, Trees, Clustering).' },
-      { step: 4, title: 'Deep Learning', desc: 'Neural networks, CNNs, RNNs, and model training using PyTorch or TensorFlow.' },
-      { step: 5, title: 'NLP / Computer Vision', desc: 'Transformers, BERT, LLMs, Hugging Face ecosystem, and OpenCV vision processing.' },
+      { step: 1, title: 'Python Core & Algorithms', desc: 'Master core Python syntax, OOP concepts, data structures, and algorithmic efficiency.' },
+      { step: 2, title: 'NumPy & Pandas Data Wrangling', desc: 'Data manipulation, vector math, data cleaning, and exploratory data analysis.' },
+      { step: 3, title: 'Machine Learning Frameworks', desc: 'Supervised & unsupervised algorithms with Scikit-Learn (Regression, Trees, Clustering).' },
+      { step: 4, title: 'Deep Learning & Neural Architectures', desc: 'Neural networks, CNNs, RNNs, and model training using PyTorch or TensorFlow.' },
+      { step: 5, title: 'NLP & Vision Models', desc: 'Transformers, BERT, LLMs, Hugging Face ecosystem, and OpenCV vision processing.' },
       { step: 6, title: 'AI/ML Projects', desc: 'Build and showcase 2-3 production-ready portfolio projects (e.g. RAG system, image classifier).' },
-      { step: 7, title: 'AI/ML Internship', desc: 'Prepare for technical interviews, MLOps deployment with Docker & FastAPI, and land roles.' }
-    ]
-  },
-  'data-analyst': {
-    title: 'Data Analyst',
-    matchScore: 78,
-    tagline: 'Transform complex datasets into actionable business insights and dashboards.',
-    matchedSkills: ['Python', 'Data Analysis', 'Problem Solving', 'Excel'],
-    skillsToDevelop: ['Advanced SQL', 'Power BI / Tableau', 'Statistics & A/B Testing', 'Data Storytelling'],
-    roadmap: [
-      { step: 1, title: 'Excel & SQL Basics', desc: 'Master Pivot Tables, VLOOKUP, basic SQL queries, joins, and database structures.' },
-      { step: 2, title: 'Python for Data Analysis', desc: 'Learn Pandas, NumPy, and Matplotlib for data wrangling and charting.' },
-      { step: 3, title: 'Advanced SQL Analytics', desc: 'CTEs, Window functions, complex aggregations, and query optimization.' },
-      { step: 4, title: 'BI Dashboards', desc: 'Build interactive executive dashboards using Power BI or Tableau.' },
-      { step: 5, title: 'Applied Statistics', desc: 'Hypothesis testing, probability distributions, and A/B test evaluation.' },
-      { step: 6, title: 'Analytics Projects', desc: 'Analyze real-world business datasets and publish case studies.' }
+      { step: 7, title: 'MLOps Deployment', desc: 'Prepare for technical interviews, MLOps deployment with Docker & FastAPI, and land roles.' }
     ]
   },
   'python-developer': {
     title: 'Python Developer',
-    matchScore: 72,
+    matchScore: 88,
     tagline: 'Build backend microservices, automation scripts, and REST APIs.',
+    coreSkills: ['python', 'django', 'flask', 'fastapi', 'sql', 'postgresql', 'rest api'],
+    secondarySkills: ['git', 'docker', 'redis', 'mongodb', 'c++'],
+    requiredSkills: ['python', 'django', 'flask', 'fastapi', 'sql', 'postgresql', 'docker', 'git', 'rest api'],
     matchedSkills: ['Python', 'Git', 'Problem Solving'],
     skillsToDevelop: ['Django / Flask / FastAPI', 'PostgreSQL / SQL', 'REST APIs', 'Unit Testing', 'Docker'],
     roadmap: [
@@ -261,16 +313,94 @@ const CAREER_DATABASE = {
   },
   'web-developer': {
     title: 'Web Developer',
-    matchScore: 65,
+    matchScore: 85,
     tagline: 'Develop responsive user interfaces and dynamic web applications.',
-    matchedSkills: ['HTML', 'CSS', 'Problem Solving'],
-    skillsToDevelop: ['JavaScript (ES6+)', 'React.js', 'Tailwind CSS', 'Node.js Basics', 'State Management'],
+    coreSkills: ['html', 'css', 'javascript', 'react', 'tailwind', 'bootstrap'],
+    secondarySkills: ['git', 'typescript', 'ui/ux', 'figma'],
+    requiredSkills: ['html', 'css', 'javascript', 'react', 'tailwind', 'bootstrap', 'git'],
+    matchedSkills: ['HTML5', 'CSS3', 'JavaScript', 'React.js'],
+    skillsToDevelop: ['Tailwind CSS', 'TypeScript', 'Node.js Basics', 'State Management'],
     roadmap: [
       { step: 1, title: 'HTML5 & CSS3', desc: 'Semantic HTML, Flexbox, Grid, and responsive web design techniques.' },
       { step: 2, title: 'JavaScript Fundamentals', desc: 'DOM manipulation, ES6+ features, fetch API, promises, and async/await.' },
       { step: 3, title: 'React.js', desc: 'Component architecture, state, props, hooks (useState, useEffect), and JSX.' },
       { step: 4, title: 'Modern CSS Frameworks', desc: 'Rapid styling using Tailwind CSS and component libraries.' },
       { step: 5, title: 'Full Stack Integration', desc: 'Connect React frontend with REST backend APIs and database storage.' }
+    ]
+  },
+  'full-stack-developer': {
+    title: 'Full Stack Developer',
+    matchScore: 82,
+    tagline: 'Build scalable web applications, dynamic frontend interfaces, and robust backend REST APIs.',
+    coreSkills: ['react', 'javascript', 'node', 'express', 'sql', 'mongodb', 'next.js', 'rest api', 'html', 'css'],
+    secondarySkills: ['typescript', 'postgresql', 'tailwind', 'docker', 'git'],
+    requiredSkills: ['react', 'next.js', 'javascript', 'typescript', 'node', 'express', 'rest api', 'sql', 'mongodb', 'postgresql', 'html', 'css', 'tailwind'],
+    matchedSkills: ['JavaScript', 'React.js', 'HTML5', 'CSS3', 'Git'],
+    skillsToDevelop: ['Next.js', 'Node.js & Express', 'REST APIs', 'PostgreSQL / SQL', 'MongoDB'],
+    roadmap: [
+      { step: 1, title: 'Frontend Foundations (HTML5, CSS3, ES6+)', desc: 'Master semantic HTML, responsive CSS layouts (Flexbox/Grid), and modern asynchronous JavaScript.' },
+      { step: 2, title: 'Modern Frontend (React.js & Next.js)', desc: 'Build modular UI components, manage state hooks, routing, and leverage Next.js SSR/SSG capabilities.' },
+      { step: 3, title: 'Backend Web Services (Node.js & Express)', desc: 'Create RESTful backend microservices, custom middleware, and request validation pipelines.' },
+      { step: 4, title: 'Database Architecture & ORMs', desc: 'Design relational (PostgreSQL / MySQL) & NoSQL (MongoDB) schemas using ORMs like Prisma or Mongoose.' },
+      { step: 5, title: 'API Security & Authentication', desc: 'Implement JWT authentication, OAuth2 login flows, password hashing, and CORS protection.' },
+      { step: 6, title: 'Full Stack Integration & State Management', desc: 'Connect React frontend with Express backend APIs, manage global state, and write automated tests.' },
+      { step: 7, title: 'Cloud Deployment & DevOps Basics', desc: 'Package app with Docker, deploy frontend to Vercel and backend to cloud services with automated CI/CD.' }
+    ]
+  },
+  'data-analyst': {
+    title: 'Data Analyst',
+    matchScore: 78,
+    tagline: 'Transform complex datasets into actionable business insights and dashboards.',
+    coreSkills: ['sql', 'data analysis', 'excel', 'power bi', 'tableau', 'pandas', 'python', 'statistics'],
+    secondarySkills: ['mysql', 'postgresql', 'sqlite', 'problem solving'],
+    requiredSkills: ['excel', 'sql', 'python', 'pandas', 'power bi', 'tableau', 'statistics', 'data analysis'],
+    matchedSkills: ['Python', 'Data Analysis', 'Problem Solving', 'Excel'],
+    skillsToDevelop: ['Advanced SQL', 'Power BI / Tableau', 'Statistics & A/B Testing', 'Data Storytelling'],
+    roadmap: [
+      { step: 1, title: 'Excel & SQL Basics', desc: 'Master Pivot Tables, VLOOKUP, basic SQL queries, joins, and database structures.' },
+      { step: 2, title: 'Python for Data Analysis', desc: 'Learn Pandas, NumPy, and Matplotlib for data wrangling and charting.' },
+      { step: 3, title: 'Advanced SQL Analytics', desc: 'CTEs, Window functions, complex aggregations, and query optimization.' },
+      { step: 4, title: 'BI Dashboards', desc: 'Build interactive executive dashboards using Power BI or Tableau.' },
+      { step: 5, title: 'Applied Statistics', desc: 'Hypothesis testing, probability distributions, and A/B test evaluation.' },
+      { step: 6, title: 'Analytics Projects', desc: 'Analyze real-world business datasets and publish case studies.' }
+    ]
+  },
+  'data-engineer': {
+    title: 'Data Engineer',
+    matchScore: 74,
+    tagline: 'Architect enterprise data pipelines, ETL workflows, big data engines, and data warehouses.',
+    coreSkills: ['sql', 'python', 'etl', 'apache spark', 'spark', 'airflow', 'big data', 'postgresql'],
+    secondarySkills: ['mongodb', 'docker', 'aws', 'git'],
+    requiredSkills: ['sql', 'python', 'etl', 'apache spark', 'spark', 'airflow', 'big data', 'postgresql', 'mongodb', 'docker', 'aws'],
+    matchedSkills: ['Python', 'SQL', 'Data Analysis', 'PostgreSQL'],
+    skillsToDevelop: ['ETL Pipelines', 'Apache Spark', 'Apache Airflow', 'Big Data Architecture', 'Data Warehousing'],
+    roadmap: [
+      { step: 1, title: 'Advanced SQL & Database Modeling', desc: 'Master complex database queries, CTEs, window functions, indexing, and relational schema normalization.' },
+      { step: 2, title: 'Python for Data Engineering', desc: 'Develop advanced Python scripts to extract, clean, transform, and validate structured and unstructured data formats.' },
+      { step: 3, title: 'ETL / ELT Pipeline Architecture', desc: 'Design reliable, fault-tolerant Extract, Transform, Load pipelines connecting databases, APIs, and file lakes.' },
+      { step: 4, title: 'Big Data Processing (Apache Spark)', desc: 'Process massive distributed datasets in parallel using PySpark, DataFrames, and Spark Streaming.' },
+      { step: 5, title: 'Workflow Orchestration (Apache Airflow)', desc: 'Automate, schedule, and monitor complex data pipeline Directed Acyclic Graphs (DAGs) using Airflow.' },
+      { step: 6, title: 'Cloud Data Warehousing', desc: 'Model and query cloud data warehouses such as Snowflake, Google BigQuery, or AWS Redshift.' },
+      { step: 7, title: 'Data Pipeline Engineering Capstone', desc: 'Build an end-to-end automated streaming data pipeline delivering real-time metrics to an analytical dashboard.' }
+    ]
+  },
+  'cloud-devops-engineer': {
+    title: 'Cloud / DevOps Engineer',
+    matchScore: 70,
+    tagline: 'Automate cloud infrastructure, CI/CD pipelines, container orchestration, and IaC deployments.',
+    coreSkills: ['aws', 'azure', 'docker', 'kubernetes', 'ci/cd', 'terraform', 'git'],
+    secondarySkills: ['python', 'gcp', 'bash', 'linux'],
+    requiredSkills: ['aws', 'azure', 'docker', 'kubernetes', 'ci/cd', 'terraform', 'git', 'python'],
+    matchedSkills: ['AWS Cloud', 'Docker', 'Git', 'Linux'],
+    skillsToDevelop: ['Kubernetes', 'CI/CD Pipelines', 'Terraform', 'Microsoft Azure'],
+    roadmap: [
+      { step: 1, title: 'Linux & Scripting', desc: 'Master Linux command-line administration, Bash scripting, and Git version control fundamentals.' },
+      { step: 2, title: 'Cloud Infrastructure (AWS / Azure)', desc: 'Learn core cloud architecture, IAM roles, virtual servers (EC2/VMs), networking (VPC), and cloud storage.' },
+      { step: 3, title: 'Containerization with Docker', desc: 'Containerize microservices, write efficient Dockerfiles, and manage multi-container setups with Docker Compose.' },
+      { step: 4, title: 'Container Orchestration (Kubernetes)', desc: 'Deploy, scale, and manage resilient production container clusters using Kubernetes (K8s) objects & Helm.' },
+      { step: 5, title: 'Infrastructure as Code (Terraform)', desc: 'Automate multi-cloud infrastructure provisioning and state management using Terraform modules.' },
+      { step: 6, title: 'CI/CD Pipeline Automation', desc: 'Build automated continuous integration and continuous deployment pipelines using GitHub Actions or Jenkins.' },
+      { step: 7, title: 'DevOps Security & Monitoring', desc: 'Implement Prometheus/Grafana monitoring, centralized logging, secrets management, and cloud security best practices.' }
     ]
   }
 };
@@ -326,6 +456,7 @@ const CareerToolsPage = () => {
 
   // Selected Career Path for Detailed Roadmap View
   const [selectedCareerKey, setSelectedCareerKey] = useState('ai-ml-engineer');
+  const [careerRecommendations, setCareerRecommendations] = useState(CAREER_DATABASE);
   const [modalToolInfo, setModalToolInfo] = useState(null);
 
   // Helper: Advanced Case-Insensitive Skill Extraction
@@ -354,26 +485,108 @@ const CareerToolsPage = () => {
     return CANONICAL_SKILL_NAMES[key] || (key.charAt(0).toUpperCase() + key.slice(1));
   };
 
-  // Handle Career Path Form Submission
+  // Handle Career Path Form Submission with Independent Skill Overlap & Domain Matching
   const handleFindCareerPath = async (e) => {
     e?.preventDefault();
     setLoading(true);
     setErrorMsg('');
 
+    let extractedUserSkills = [];
+
     if (inputOption === 'upload' && resumeFile) {
       try {
+        const textFromFileName = extractSkillsFromText(resumeFile.name);
+        extractedUserSkills.push(...textFromFileName);
+
+        if (resumeFile.name.endsWith('.txt')) {
+          const textContent = await resumeFile.text();
+          const textSkills = extractSkillsFromText(textContent);
+          extractedUserSkills.push(...textSkills);
+        }
+
         const bodyFormData = new FormData();
         bodyFormData.append('file', resumeFile, resumeFile.name);
-        await api.post('/api/analysis/analyze', bodyFormData);
+        const res = await api.post('/api/analysis/analyze', bodyFormData);
+        if (res.data?.analysis?.report_data?.skills_found) {
+          const backendSkills = res.data.analysis.report_data.skills_found.map(s => s.toLowerCase());
+          extractedUserSkills.push(...backendSkills);
+        }
       } catch (err) {
         console.warn('Backend parse notice:', err?.response?.data?.message || err.message);
       }
+    } else {
+      extractedUserSkills = extractSkillsFromText(`${formData.skills} ${formData.interests}`);
     }
+
+    const userSkillsClean = Array.from(new Set(extractedUserSkills.map(s => s.toLowerCase())));
+    const userInterestsLower = (formData.interests || '').toLowerCase();
+
+    // Evaluate dynamic match scores independently for each of the 7 roles
+    const evaluatedDatabase = {};
+
+    Object.entries(CAREER_DATABASE).forEach(([key, role]) => {
+      const coreList = role.coreSkills || role.requiredSkills || [];
+      const secList = role.secondarySkills || [];
+      const allRequired = Array.from(new Set([...coreList, ...secList]));
+
+      const coreMatched = coreList.filter(sk =>
+        userSkillsClean.some(uSkill => uSkill.includes(sk) || sk.includes(uSkill))
+      );
+      const secMatched = secList.filter(sk =>
+        userSkillsClean.some(uSkill => uSkill.includes(sk) || sk.includes(uSkill))
+      );
+      const allMatched = Array.from(new Set([...coreMatched, ...secMatched]));
+      const allMissing = allRequired.filter(sk => !allMatched.includes(sk));
+
+      let computedScore = role.matchScore;
+
+      if (userSkillsClean.length > 0) {
+        // Independent Core Skills overlap ratio
+        const minTargetCoreCount = Math.min(2, coreList.length);
+        const coreRatio = minTargetCoreCount > 0 ? Math.min(1, coreMatched.length / minTargetCoreCount) : 0;
+        
+        // Secondary skills overlap ratio
+        const secRatio = secList.length > 0 ? Math.min(1, secMatched.length / secList.length) : 0;
+
+        let score = 45 + Math.round(coreRatio * 38) + Math.round(secRatio * 12);
+
+        // Target Domain Alignment Boost
+        if (userInterestsLower.includes(role.title.toLowerCase()) ||
+            (key === 'ai-ml-engineer' && (userInterestsLower.includes('ai') || userInterestsLower.includes('ml') || userInterestsLower.includes('machine learning'))) ||
+            (key === 'python-developer' && userInterestsLower.includes('python')) ||
+            (key === 'web-developer' && userInterestsLower.includes('web')) ||
+            (key === 'full-stack-developer' && (userInterestsLower.includes('web') || userInterestsLower.includes('full stack'))) ||
+            (key === 'data-analyst' && (userInterestsLower.includes('data') || userInterestsLower.includes('analyst'))) ||
+            (key === 'cloud-devops-engineer' && (userInterestsLower.includes('cloud') || userInterestsLower.includes('devops'))) ||
+            (key === 'data-engineer' && (userInterestsLower.includes('data') || userInterestsLower.includes('engineer') || userInterestsLower.includes('pipeline')))) {
+          score += 5;
+        }
+
+        computedScore = Math.min(98, Math.max(35, score));
+      }
+
+      const displayMatched = allMatched.length > 0
+        ? allMatched.map(s => formatSkillCanonical(s))
+        : role.matchedSkills;
+
+      const displayToDevelop = allMissing.length > 0
+        ? allMissing.slice(0, 5).map(s => formatSkillCanonical(s))
+        : role.skillsToDevelop;
+
+      evaluatedDatabase[key] = {
+        ...role,
+        matchScore: computedScore,
+        matchedSkills: displayMatched,
+        skillsToDevelop: displayToDevelop
+      };
+    });
+
+    setCareerRecommendations(evaluatedDatabase);
 
     setTimeout(() => {
       setLoading(false);
       setActiveView('results');
-    }, 600);
+    }, 500);
   };
 
   // Handle Skill Gap Analyzer Submission
@@ -955,7 +1168,7 @@ Applicant / Candidate`;
     }
   };
 
-  const selectedCareer = CAREER_DATABASE[selectedCareerKey] || CAREER_DATABASE['ai-ml-engineer'];
+  const selectedCareer = (careerRecommendations && careerRecommendations[selectedCareerKey]) || CAREER_DATABASE[selectedCareerKey] || CAREER_DATABASE['cloud-devops-engineer'];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
@@ -1485,16 +1698,26 @@ Applicant / Candidate`;
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
                   5. Desired Cover Letter Tone
                 </label>
-                <select
-                  value={coverLetterTone}
-                  onChange={(e) => setCoverLetterTone(e.target.value)}
-                  className="w-full text-xs p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:outline-none bg-white font-semibold text-gray-800"
-                >
-                  <option value="Professional">Professional (Corporate & Balanced)</option>
-                  <option value="Enthusiastic">Enthusiastic (Energetic & Passionate)</option>
-                  <option value="Formal">Formal (Traditional & Executive)</option>
-                  <option value="Creative">Creative (Modern & Dynamic)</option>
-                </select>
+                <div className="relative w-full box-border">
+                  <select
+                    value={coverLetterTone}
+                    onChange={(e) => setCoverLetterTone(e.target.value)}
+                    className="w-full text-xs font-semibold text-gray-800 bg-white border border-gray-300 rounded-xl px-4 py-3 pr-10 appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm transition-all cursor-pointer box-border overflow-hidden text-ellipsis whitespace-nowrap"
+                  >
+                    <option value="Professional" className="py-2.5 px-3.5 text-xs bg-white text-gray-800 font-medium">
+                      Professional (Corporate &amp; Balanced)
+                    </option>
+                    <option value="Enthusiastic" className="py-2.5 px-3.5 text-xs bg-white text-gray-800 font-medium">
+                      Enthusiastic (Energetic &amp; Passionate)
+                    </option>
+                    <option value="Formal" className="py-2.5 px-3.5 text-xs bg-white text-gray-800 font-medium">
+                      Formal (Traditional &amp; Executive)
+                    </option>
+                    <option value="Creative" className="py-2.5 px-3.5 text-xs bg-white text-gray-800 font-medium">
+                      Creative (Modern &amp; Dynamic)
+                    </option>
+                  </select>
+                </div>
               </div>
 
               <button
@@ -1702,6 +1925,9 @@ Applicant / Candidate`;
                   onChange={(e) => setSkillGapRole(e.target.value)}
                   className="w-full text-sm font-semibold text-gray-900 border border-gray-300 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 bg-white"
                 >
+                  <option value="Cloud / DevOps Engineer">☁️ Cloud / DevOps Engineer</option>
+                  <option value="Full Stack Developer">💻 Full Stack Developer</option>
+                  <option value="Data Engineer">🗄️ Data Engineer</option>
                   <option value="AI/ML Engineer">🤖 AI/ML Engineer</option>
                   <option value="Data Scientist">🔬 Data Scientist</option>
                   <option value="Data Analyst">📊 Data Analyst</option>
@@ -2072,7 +2298,9 @@ Applicant / Candidate`;
 
           {/* Career Path Options Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {Object.entries(CAREER_DATABASE).map(([key, role]) => (
+            {Object.entries(careerRecommendations || CAREER_DATABASE)
+              .sort(([, a], [, b]) => b.matchScore - a.matchScore)
+              .map(([key, role]) => (
               <div
                 key={key}
                 className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 flex flex-col justify-between space-y-4 hover:border-blue-400 transition-all"

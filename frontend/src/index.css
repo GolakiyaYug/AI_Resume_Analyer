@@ -275,3 +275,52 @@
   margin-bottom: 1rem !important;
   clear: both !important;
 }
+
+/* =========================================================
+   CUSTOM SELECT & DROPDOWN OPTIONS CROSS-BROWSER STYLING
+   Fixes alignment, text overflow, unstyled native options list,
+   box-sizing border alignment, and custom arrow icon.
+   ========================================================= */
+select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+  background-color: #ffffff !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.875rem center !important;
+  background-size: 1.25rem 1.25rem !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+  padding-right: 2.75rem !important;
+  text-overflow: ellipsis !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+}
+
+select:focus {
+  outline: none !important;
+}
+
+/* Options list dropdown item styling */
+select option {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+  padding: 10px 14px !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  min-height: 2.5rem !important;
+}
+
+select option:hover,
+select option:focus,
+select option:active,
+select option:checked {
+  background-color: #f3f4f6 !important;
+  color: #111827 !important;
+}
