@@ -8,7 +8,8 @@ import {
   LuFilePenLine,
   LuUser,
   LuFolder,
-  LuLogOut
+  LuLogOut,
+  LuDollarSign
 } from 'react-icons/lu';
 
 const Navbar = () => {
@@ -80,6 +81,13 @@ const Navbar = () => {
               <LuBriefcase className="w-4 h-4 text-blue-600" />
               <span>Career Tools</span>
             </Link>
+            <Link
+              to="/salary-negotiator"
+              className="text-gray-700 hover:text-teal-600 hover:bg-teal-50 px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+            >
+              <LuDollarSign className="w-4 h-4 text-teal-600" />
+              <span>Salary Negotiator</span>
+            </Link>
 
             {isAuthenticated ? (
               <>
@@ -115,6 +123,14 @@ const Navbar = () => {
                       >
                         <LuUser className="w-4 h-4 text-blue-600" />
                         <span>Profile</span>
+                      </Link>
+                      <Link
+                        to="/salary-negotiator"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 hover:text-teal-600 transition-colors font-medium"
+                      >
+                        <LuDollarSign className="w-4 h-4 text-teal-600" />
+                        <span>Salary Negotiator</span>
                       </Link>
                       <Link
                         to="/my-resumes"

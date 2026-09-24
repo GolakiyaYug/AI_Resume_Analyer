@@ -76,6 +76,14 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/salary-negotiator"
+                element={
+                  <ProtectedRoute>
+                    <CareerToolsPage initialView="salary-negotiator-form" />
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </main>
         </div>

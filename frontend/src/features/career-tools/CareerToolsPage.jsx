@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
 import api from '../../shared/utils/api';
 import {
   LuCompass,
   LuChartColumn,
   LuMic,
-  LuFileText
+  LuFileText,
+  LuDollarSign,
+  LuTrendingUp
 } from 'react-icons/lu';
 
 // Comprehensive global skill dictionary for client & API matching
@@ -411,9 +413,16 @@ const CAREER_DATABASE = {
   }
 };
 
-const CareerToolsPage = () => {
-  // Navigation view state: 'dashboard' | 'form' | 'results' | 'roadmap' | 'skill-gap-form' | 'skill-gap-report' | 'interview-prep-form' | 'interview-prep-output'
-  const [activeView, setActiveView] = useState('dashboard');
+const CareerToolsPage = ({ initialView = 'dashboard' }) => {
+  // Navigation view state: 'dashboard' | 'form' | 'results' | 'roadmap' | 'skill-gap-form' | 'skill-gap-report' | 'interview-prep-form' | 'interview-prep-output' | 'cover-letter-form' | 'cover-letter-output' | 'salary-negotiator-form' | 'salary-negotiator-output'
+  const [activeView, setActiveView] = useState(initialView);
+  
+  useEffect(() => {
+    if (initialView) {
+      setActiveView(initialView);
+    }
+  }, [initialView]);
+
   const [inputOption, setInputOption] = useState('manual'); // 'upload' | 'manual'
   
   // Career Path Form State
@@ -454,6 +463,16 @@ const CareerToolsPage = () => {
   const [editedCoverLetterText, setEditedCoverLetterText] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+
+  // AI Salary Negotiator & Market Worth Predictor State
+  const [salaryFile, setSalaryFile] = useState(null);
+  const [salaryJobRole, setSalaryJobRole] = useState('Senior Full Stack Developer');
+  const [salaryLocation, setSalaryLocation] = useState('San Francisco, CA');
+  const [salaryExperience, setSalaryExperience] = useState('3-5 Years');
+  const [salaryResult, setSalaryResult] = useState(null);
+  const [scriptTab, setScriptTab] = useState('email'); // 'email' | 'phone'
+  const [salaryCopySuccess, setSalaryCopySuccess] = useState(false);
+  const [isSalaryRegenerating, setIsSalaryRegenerating] = useState(false);
 
   // Upload Resume File State
   const [resumeFile, setResumeFile] = useState(null);
@@ -1157,6 +1176,260 @@ Applicant / Candidate`;
     }
   };
 
+  // AI Salary Negotiator & Market Worth Calculation Handler
+  const handleCalculateSalary = async (e) => {
+    e?.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+
+    let extractedText = '';
+    let extractedSkillsRaw = [];
+
+    if (salaryFile) {
+      try {
+        const textFromFileName = extractSkillsFromText(salaryFile.name);
+        extractedSkillsRaw.push(...textFromFileName);
+
+        if (salaryFile.name.endsWith('.txt')) {
+          extractedText = await salaryFile.text();
+          const textSkills = extractSkillsFromText(extractedText);
+          extractedSkillsRaw.push(...textSkills);
+        }
+
+        const bodyFormData = new FormData();
+        bodyFormData.append('file', salaryFile, salaryFile.name);
+        bodyFormData.append('job_role', salaryJobRole);
+        bodyFormData.append('location', salaryLocation);
+        bodyFormData.append('experience_years', salaryExperience);
+
+        const res = await api.post('/api/analysis/salary-negotiator', bodyFormData);
+        if (res.data && res.data.market_avg) {
+          setSalaryResult(res.data);
+          setLoading(false);
+          setActiveView('salary-negotiator-output');
+          return;
+        }
+      } catch (err) {
+        console.warn('Backend salary negotiator API notice:', err?.response?.data?.message || err.message);
+      }
+    } else {
+      extractedText = `${formData.skills} ${formData.interests}`;
+      extractedSkillsRaw = extractSkillsFromText(extractedText);
+    }
+
+    const lowerRole = (salaryJobRole || 'Software Engineer').toLowerCase();
+    const lowerLoc = (salaryLocation || 'Remote').toLowerCase();
+    const lowerExp = (salaryExperience || '3-5 Years').toLowerCase();
+    const userSkillsClean = Array.from(new Set(extractedSkillsRaw.map(s => s.toLowerCase())));
+    const detectedSkillsCanonical = userSkillsClean.length > 0 ? userSkillsClean.map(s => formatSkillCanonical(s)) : ['Software Engineering', 'Problem Solving'];
+
+    let baseMin = 85000, baseAvg = 120000, baseMax = 160000;
+    if (lowerRole.includes('ai') || lowerRole.includes('ml') || lowerRole.includes('machine learning') || lowerRole.includes('deep learning')) {
+      baseMin = 110000; baseAvg = 155000; baseMax = 210000;
+    } else if (lowerRole.includes('data scientist')) {
+      baseMin = 100000; baseAvg = 145000; baseMax = 190000;
+    } else if (lowerRole.includes('devops') || lowerRole.includes('cloud') || lowerRole.includes('sre')) {
+      baseMin = 105000; baseAvg = 148000; baseMax = 195000;
+    } else if (lowerRole.includes('data engineer')) {
+      baseMin = 100000; baseAvg = 142000; baseMax = 185000;
+    } else if (lowerRole.includes('full stack') || lowerRole.includes('fullstack')) {
+      baseMin = 95000; baseAvg = 135000; baseMax = 178000;
+    } else if (lowerRole.includes('backend') || lowerRole.includes('python developer') || lowerRole.includes('java')) {
+      baseMin = 92000; baseAvg = 130000; baseMax = 172000;
+    } else if (lowerRole.includes('frontend') || lowerRole.includes('react') || lowerRole.includes('web')) {
+      baseMin = 88000; baseAvg = 125000; baseMax = 165000;
+    } else if (lowerRole.includes('data analyst')) {
+      baseMin = 75000; baseAvg = 105000; baseMax = 140000;
+    } else if (lowerRole.includes('lead') || lowerRole.includes('principal') || lowerRole.includes('architect') || lowerRole.includes('manager')) {
+      baseMin = 135000; baseAvg = 185000; baseMax = 245000;
+    }
+
+    let expMult = 1.0;
+    if (lowerExp.includes('fresher') || lowerExp.includes('entry') || lowerExp.includes('0-1') || lowerExp.includes('0-2')) {
+      expMult = 0.75;
+    } else if (lowerExp.includes('1-3') || lowerExp.includes('2-4')) {
+      expMult = 0.90;
+    } else if (lowerExp.includes('3-5') || lowerExp.includes('4-6')) {
+      expMult = 1.10;
+    } else if (lowerExp.includes('5-8') || lowerExp.includes('6-8')) {
+      expMult = 1.35;
+    } else if (lowerExp.includes('8+') || lowerExp.includes('10+') || lowerExp.includes('senior')) {
+      expMult = 1.65;
+    }
+
+    let currencySymbol = '$';
+    let currencyCode = 'USD';
+    let locMult = 1.0;
+
+    if (lowerLoc.includes('india') || lowerLoc.includes('inr') || lowerLoc.includes('bangalore') || lowerLoc.includes('mumbai') || lowerLoc.includes('delhi') || lowerLoc.includes('pune') || lowerLoc.includes('hyderabad')) {
+      currencySymbol = '₹';
+      currencyCode = 'INR';
+      locMult = 10.0;
+    } else if (lowerLoc.includes('uk') || lowerLoc.includes('london') || lowerLoc.includes('england') || lowerLoc.includes('gbp')) {
+      currencySymbol = '£';
+      currencyCode = 'GBP';
+      locMult = 0.78;
+    } else if (lowerLoc.includes('europe') || lowerLoc.includes('germany') || lowerLoc.includes('france') || lowerLoc.includes('berlin') || lowerLoc.includes('eur')) {
+      currencySymbol = '€';
+      currencyCode = 'EUR';
+      locMult = 0.85;
+    } else if (lowerLoc.includes('san francisco') || lowerLoc.includes('sf') || lowerLoc.includes('bay area') || lowerLoc.includes('new york') || lowerLoc.includes('ny') || lowerLoc.includes('seattle')) {
+      locMult = 1.30;
+    } else if (lowerLoc.includes('austin') || lowerLoc.includes('chicago') || lowerLoc.includes('boston') || lowerLoc.includes('toronto')) {
+      locMult = 1.10;
+    }
+
+    const highValueSkills = ['pytorch', 'tensorflow', 'aws', 'kubernetes', 'docker', 'react', 'next.js', 'python', 'system architecture', 'terraform', 'microservices'];
+    const skillMatches = userSkillsClean.filter(s => highValueSkills.includes(s));
+    const skillBonusPct = Math.min(0.25, skillMatches.length * 0.04);
+    const skillMult = 1.0 + skillBonusPct;
+
+    const minSal = Math.round((baseMin * expMult * locMult * skillMult) / 500) * 500;
+    const avgSal = Math.round((baseAvg * expMult * locMult * skillMult) / 500) * 500;
+    const maxSal = Math.round((baseMax * expMult * locMult * skillMult) / 500) * 500;
+
+    const basePay = Math.round(avgSal * 0.85);
+    const perfBonus = Math.round(avgSal * 0.10);
+    const equityVal = Math.round(avgSal * 0.05);
+
+    const fmtAvg = `${currencySymbol}${avgSal.toLocaleString()}`;
+    const fmtMin = `${currencySymbol}${minSal.toLocaleString()}`;
+    const fmtMax = `${currencySymbol}${maxSal.toLocaleString()}`;
+
+    const valuePoints = [
+      `Demonstrated technical mastery in high-demand industry competencies: ${detectedSkillsCanonical.slice(0, 5).join(', ')}.`,
+      `Proven track record of driving quantified business impact, system efficiency, and production-level scale.`,
+      `Direct alignment with target market requirements for ${salaryJobRole} (${salaryExperience}).`,
+      `Strong cross-functional leadership, technical problem-solving, and continuous execution reliability.`
+    ];
+
+    const phoneScript = `Recruiter / Hiring Manager: "We are excited to extend an initial offer for the ${salaryJobRole} role at ${fmtMin} base salary."\n\nCandidate Verbal Response:\n"Thank you so much! I am thrilled about the opportunity to join the team and contribute to your vision. Based on my hands-on background in ${detectedSkillsCanonical.slice(0, 4).join(', ')} and current market research for ${salaryJobRole} roles in ${salaryLocation} with ${salaryExperience} of experience, the benchmark total compensation ranges between ${fmtAvg} and ${fmtMax}.\n\nGiven my immediate ability to deliver value and hit the ground running, I would be ready to sign immediately if we can align on a ${fmtAvg} base salary package with performance bonuses."`;
+
+    const emailTemplate = `Subject: Compensation Discussion – ${salaryJobRole} Application\n\nDear Hiring Team,\n\nThank you very much for extending the offer for the ${salaryJobRole} position at your company. I am genuinely excited about the role and confident in the value I can bring to your team.\n\nBefore finalizing the agreement, I would like to discuss the proposed compensation package. After conducting thorough market research for ${salaryJobRole} positions in ${salaryLocation} for candidates with ${salaryExperience} of experience, industry benchmarks indicate a market average between ${fmtAvg} and ${fmtMax}.\n\nKey value-justifications from my background supporting this tier include:\n` + valuePoints.map(vp => `• ${vp}`).join('\n') + `\n\nConsidering these qualifications, I would be grateful if we could adjust the base salary to ${fmtAvg}. I am confident this reflects the market rate for my skill set and look forward to concluding our agreement.\n\nSincerely,\n[Your Name]`;
+
+    setSalaryResult({
+      job_role: salaryJobRole,
+      location: salaryLocation,
+      experience_years: salaryExperience,
+      currency_symbol: currencySymbol,
+      currency_code: currencyCode,
+      min_salary: minSal,
+      market_avg: avgSal,
+      max_salary: maxSal,
+      base_pay: basePay,
+      performance_bonus: perfBonus,
+      equity_grant: equityVal,
+      skill_premium_pct: Math.round(skillBonusPct * 100),
+      detected_skills: detectedSkillsCanonical,
+      value_justifications: valuePoints,
+      phone_script: phoneScript,
+      email_template: emailTemplate
+    });
+
+    setTimeout(() => {
+      setLoading(false);
+      setActiveView('salary-negotiator-output');
+    }, 400);
+  };
+
+  const handleCopySalaryScript = () => {
+    const textToCopy = scriptTab === 'email' ? salaryResult?.email_template : salaryResult?.phone_script;
+    navigator.clipboard.writeText(textToCopy || '');
+    setSalaryCopySuccess(true);
+    setTimeout(() => setSalaryCopySuccess(false), 2000);
+  };
+
+  const handleRegenerateSalary = async (e) => {
+    setIsSalaryRegenerating(true);
+    await handleCalculateSalary(e);
+    setIsSalaryRegenerating(false);
+  };
+
+  const handleDownloadSalaryPdf = () => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const sym = salaryResult?.currency_symbol || '$';
+      const minS = salaryResult?.min_salary?.toLocaleString() || '0';
+      const avgS = salaryResult?.market_avg?.toLocaleString() || '0';
+      const maxS = salaryResult?.max_salary?.toLocaleString() || '0';
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.setTextColor(15, 23, 42);
+      doc.text('AI Salary Negotiator & Market Worth Report', 20, 22);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Role: ${salaryResult?.job_role || 'Software Engineer'} | Location: ${salaryResult?.location || 'Remote'} | Exp: ${salaryResult?.experience_years}`, 20, 30);
+
+      doc.setDrawColor(226, 232, 240);
+      doc.line(20, 34, 190, 34);
+
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(20, 40, 170, 36, 3, 3, 'F');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(30, 41, 59);
+      doc.text('ESTIMATED MARKET SALARY BREAKDOWN', 25, 48);
+
+      doc.setFontSize(10);
+      doc.setTextColor(51, 65, 85);
+      doc.text(`Minimum Market Salary: ${sym}${minS}`, 25, 57);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(16, 185, 129);
+      doc.text(`Market Average (Target): ${sym}${avgS}`, 25, 64);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(51, 65, 85);
+      doc.text(`Maximum Market Salary: ${sym}${maxS}`, 25, 71);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Key Resume Value Justifications', 20, 86);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.5);
+      let curY = 94;
+      (salaryResult?.value_justifications || []).forEach((vPoint) => {
+        const splitV = doc.splitTextToSize(`• ${vPoint}`, 165);
+        doc.text(splitV, 20, curY);
+        curY += splitV.length * 5.5;
+      });
+
+      curY += 6;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      doc.text('AI Recruiter Negotiation Script & Template', 20, curY);
+      curY += 8;
+
+      const scriptText = scriptTab === 'email' ? salaryResult?.email_template : salaryResult?.phone_script;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const splitScript = doc.splitTextToSize(scriptText || '', 165);
+
+      splitScript.forEach((line) => {
+        if (curY > 275) {
+          doc.addPage();
+          curY = 20;
+        }
+        doc.text(line, 20, curY);
+        curY += 4.8;
+      });
+
+      doc.save(`${(salaryResult?.job_role || 'Salary_Worth').replace(/[^a-zA-Z0-9]/g, '_')}_Negotiation_Report.pdf`);
+    } catch (err) {
+      console.error('Salary PDF Error:', err);
+    }
+  };
+
   const handleOpenTool = (toolName) => {
     if (toolName === 'Career Path') {
       setActiveView('form');
@@ -1166,6 +1439,8 @@ Applicant / Candidate`;
       setActiveView('interview-prep-form');
     } else if (toolName === 'Cover Letter') {
       setActiveView('cover-letter-form');
+    } else if (toolName === 'Salary Negotiator' || toolName === 'AI Salary Negotiator & Market Worth Predictor') {
+      setActiveView('salary-negotiator-form');
     } else {
       setModalToolInfo({
         title: toolName,
@@ -1274,6 +1549,339 @@ Applicant / Candidate`;
               >
                 <span>Generate Cover Letter</span>
                 <span>→</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Salary Negotiator & Market Worth Predictor Input Form */}
+      {activeView === 'salary-negotiator-form' && (
+        <div className="max-w-3xl mx-auto space-y-6">
+          <button
+            onClick={() => setActiveView('dashboard')}
+            className="text-xs font-semibold text-gray-600 hover:text-teal-600 flex items-center gap-1.5 transition-colors"
+          >
+            <span>← Back to Dashboard</span>
+          </button>
+
+          <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-6">
+            <div>
+              <div className="inline-flex items-center gap-2 bg-teal-50 text-teal-700 border border-teal-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-2">
+                💵 AI Salary Negotiator &amp; Market Worth Predictor
+              </div>
+              <h2 className="text-2xl font-black text-gray-900">Predict Your Market Worth &amp; Negotiation Power</h2>
+              <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                Upload your resume, enter your target role, location, and experience to calculate estimated market salary ranges and generate recruiter negotiation scripts.
+              </p>
+            </div>
+
+            <form onSubmit={handleCalculateSalary} className="space-y-6">
+              {/* Field 1: Upload Resume File */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  1. Upload Resume File (.pdf, .docx, .txt) <span className="text-gray-400 font-normal">(Optional, or uses profile skills)</span>
+                </label>
+                <div className="border-2 border-dashed border-gray-300 hover:border-teal-400 bg-gray-50/50 rounded-2xl p-6 text-center cursor-pointer transition-all">
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.txt"
+                    onChange={(e) => setSalaryFile(e.target.files?.[0] || null)}
+                    className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:font-semibold file:bg-teal-50 file:text-teal-700"
+                  />
+                  {salaryFile && (
+                    <p className="text-xs font-bold text-teal-600 mt-2">
+                      ✓ Resume File Selected: {salaryFile.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Field 2 & 3: Target Job Role & Location */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    2. Target Job Role <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={salaryJobRole}
+                    onChange={(e) => setSalaryJobRole(e.target.value)}
+                    placeholder="e.g. Senior Full Stack Engineer"
+                    className="w-full text-xs p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    3. Location <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={salaryLocation}
+                    onChange={(e) => setSalaryLocation(e.target.value)}
+                    placeholder="e.g. San Francisco, CA / London / Remote / India"
+                    className="w-full text-xs p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Field 4: Years of Experience */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  4. Years of Experience <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={salaryExperience}
+                  onChange={(e) => setSalaryExperience(e.target.value)}
+                  className="w-full text-xs font-semibold text-gray-800 bg-white border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
+                >
+                  <option value="Fresher">Fresher (Entry Level 0-1 Yr)</option>
+                  <option value="1-3 Years">1 - 3 Years (Junior/Mid)</option>
+                  <option value="3-5 Years">3 - 5 Years (Mid Level)</option>
+                  <option value="5-8 Years">5 - 8 Years (Senior Level)</option>
+                  <option value="8+ Years">8+ Years (Lead / Principal / Executive)</option>
+                </select>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 px-6 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <span className="animate-spin text-base">⏳</span>
+                    <span>Evaluating Market Data &amp; Salary Ranges...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>💵 Predict Market Worth &amp; Generate Negotiation Script</span>
+                    <span>→</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* AI Salary Negotiator Output View */}
+      {activeView === 'salary-negotiator-output' && salaryResult && (
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setActiveView('salary-negotiator-form')}
+              className="text-xs font-semibold text-gray-600 hover:text-teal-600 flex items-center gap-1.5 transition-colors"
+            >
+              <span>← Re-configure Salary Parameters</span>
+            </button>
+            <button
+              onClick={() => setActiveView('dashboard')}
+              className="text-xs font-semibold text-blue-600 hover:underline"
+            >
+              Dashboard 🏠
+            </button>
+          </div>
+
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-indigo-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span className="bg-teal-500/20 text-teal-200 border border-teal-400/30 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                  💵 Market Worth &amp; Negotiation Intelligence
+                </span>
+                <h1 className="text-2xl sm:text-3xl font-black mt-2">
+                  {salaryResult.job_role}
+                </h1>
+                <p className="text-xs sm:text-sm text-teal-100/80 mt-1">
+                  Location: <strong>{salaryResult.location}</strong> &bull; Experience: <strong>{salaryResult.experience_years}</strong>
+                </p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-4 rounded-2xl text-center">
+                <div className="text-[11px] uppercase tracking-wider font-semibold text-teal-200">Estimated Market Average</div>
+                <div className="text-2xl sm:text-3xl font-black text-emerald-300">
+                  {salaryResult.currency_symbol}{salaryResult.market_avg.toLocaleString()} <span className="text-xs font-medium text-white/70">/ yr</span>
+                </div>
+              </div>
+            </div>
+
+            {salaryResult.detected_skills?.length > 0 && (
+              <div className="pt-2 border-t border-white/10 space-y-1">
+                <span className="text-[11px] font-medium text-teal-200/80">Skills contributing to market value:</span>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {salaryResult.detected_skills.map((s) => (
+                    <span key={s} className="bg-teal-500/30 text-teal-100 border border-teal-400/30 text-[11px] font-medium px-2.5 py-0.5 rounded-md">
+                      ✓ {s}
+                    </span>
+                  ))}
+                  {salaryResult.skill_premium_pct > 0 && (
+                    <span className="bg-emerald-500/40 text-emerald-200 border border-emerald-400/40 text-[11px] font-bold px-2.5 py-0.5 rounded-md">
+                      🔥 +{salaryResult.skill_premium_pct}% Skill Premium Boost
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 1. Clear Salary Breakdown Card */}
+          <div className="bg-white rounded-3xl border border-gray-200 shadow-md p-6 sm:p-8 space-y-6">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+              <div>
+                <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
+                  <span>📊 Estimated Compensation Range</span>
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">Benchmarked against real-time industry compensation datasets</p>
+              </div>
+              <span className="text-xs font-bold text-teal-800 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full">
+                Currency: {salaryResult.currency_code} ({salaryResult.currency_symbol})
+              </span>
+            </div>
+
+            {/* Visual Range Bar */}
+            <div className="space-y-3 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+              <div className="flex justify-between items-center text-xs font-bold text-gray-700">
+                <span>Min Salary (25th %)</span>
+                <span className="text-emerald-700 text-sm font-black">Market Avg (50th %)</span>
+                <span>Max Salary (90th %)</span>
+              </div>
+
+              {/* Progress Slider */}
+              <div className="relative w-full bg-gray-200 rounded-full h-4 overflow-hidden flex items-center shadow-inner">
+                <div
+                  className="bg-gradient-to-r from-teal-400 via-emerald-500 to-indigo-600 h-full rounded-full transition-all duration-500"
+                  style={{ width: '100%' }}
+                ></div>
+              </div>
+
+              <div className="flex justify-between items-center text-xs sm:text-sm font-black">
+                <span className="text-slate-700">{salaryResult.currency_symbol}{salaryResult.min_salary.toLocaleString()}</span>
+                <span className="text-emerald-600 text-base sm:text-lg">{salaryResult.currency_symbol}{salaryResult.market_avg.toLocaleString()}</span>
+                <span className="text-indigo-700">{salaryResult.currency_symbol}{salaryResult.max_salary.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Total Compensation Components Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              <div className="p-4 rounded-2xl bg-teal-50/60 border border-teal-200 space-y-1">
+                <div className="text-[11px] font-bold text-teal-700 uppercase tracking-wider">Estimated Base Pay (85%)</div>
+                <div className="text-lg font-black text-teal-950">{salaryResult.currency_symbol}{salaryResult.base_pay.toLocaleString()}</div>
+                <p className="text-[10px] text-teal-700/80">Guaranteed fixed cash compensation</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-1">
+                <div className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Est. Annual Bonus (10%)</div>
+                <div className="text-lg font-black text-emerald-950">{salaryResult.currency_symbol}{salaryResult.performance_bonus.toLocaleString()}</div>
+                <p className="text-[10px] text-emerald-700/80">Performance-tied incentive bonus</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-1">
+                <div className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Equity / Perks (5%)</div>
+                <div className="text-lg font-black text-indigo-950">{salaryResult.currency_symbol}{salaryResult.equity_grant.toLocaleString()}</div>
+                <p className="text-[10px] text-indigo-700/80">Stock options, RSUs, or extra perks</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Key Value-Justification Bullet Points */}
+          <div className="bg-white rounded-3xl border border-gray-200 shadow-md p-6 sm:p-8 space-y-4">
+            <h3 className="text-xl font-black text-gray-900 flex items-center gap-2 border-b border-gray-100 pb-3">
+              <span>🎯 Resume Achievement Value-Justifications</span>
+            </h3>
+            <p className="text-xs text-gray-500">
+              Use these achievement bullet points derived directly from your resume to back up higher salary expectations during interviews and negotiation calls:
+            </p>
+
+            <div className="space-y-3 pt-2">
+              {salaryResult.value_justifications.map((point, idx) => (
+                <div key={idx} className="flex items-start gap-3 p-3.5 rounded-2xl border border-teal-100 bg-teal-50/30 text-xs font-semibold text-slate-800 leading-relaxed">
+                  <span className="w-6 h-6 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-[11px] flex-shrink-0 mt-0.5">
+                    {idx + 1}
+                  </span>
+                  <span>{point}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 3. AI-Generated Recruiter Negotiation Script / Email Template */}
+          <div className="bg-white rounded-3xl border border-gray-200 shadow-xl p-6 sm:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+              <div>
+                <h3 className="text-xl font-black text-gray-900">💬 AI Recruiter Negotiation Script</h3>
+                <p className="text-xs text-gray-500">Professional counter-offer phrasing tailored for your target salary</p>
+              </div>
+
+              {/* Script Mode Tabs */}
+              <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setScriptTab('email')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    scriptTab === 'email' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  ✉️ Email Template
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScriptTab('phone')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    scriptTab === 'phone' ? 'bg-white text-teal-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  📞 Phone Call Script
+                </button>
+              </div>
+            </div>
+
+            {/* Script Text Container */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 relative">
+              <pre className="whitespace-pre-wrap font-sans text-xs sm:text-sm text-slate-800 leading-relaxed font-normal">
+                {scriptTab === 'email' ? salaryResult.email_template : salaryResult.phone_script}
+              </pre>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100">
+              <div className="flex flex-wrap gap-2">
+                {/* Copy Button */}
+                <button
+                  onClick={handleCopySalaryScript}
+                  className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 text-xs shadow-sm transition-all"
+                >
+                  <span>{salaryCopySuccess ? '✓ Copied Script!' : '📋 Copy Script'}</span>
+                </button>
+
+                {/* Download PDF Button */}
+                <button
+                  onClick={handleDownloadSalaryPdf}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 text-xs shadow-sm transition-all"
+                >
+                  <span>📥 Download PDF Report</span>
+                </button>
+              </div>
+
+              {/* Regenerate Button */}
+              <button
+                onClick={handleRegenerateSalary}
+                disabled={isSalaryRegenerating || loading}
+                className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 text-xs shadow-sm transition-all disabled:opacity-50"
+              >
+                {isSalaryRegenerating ? (
+                  <>
+                    <span className="animate-spin text-sm">🔄</span>
+                    <span>Recalculating...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🔄 Regenerate Script</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

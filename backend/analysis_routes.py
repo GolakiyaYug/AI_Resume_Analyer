@@ -351,3 +351,176 @@ def analyze_resume():
     db.session.add(analysis)
     db.session.commit()
     return jsonify({"analysis": analysis.to_dict()}), 201
+
+
+def _calculate_salary_market(text, job_role, location, experience_years):
+    lower_role = (job_role or "Software Engineer").lower()
+    lower_loc = (location or "Remote").lower()
+    lower_exp = (experience_years or "3-5 Years").lower()
+    
+    # Extract skills
+    normalized = re.sub(r"\s+", " ", text or "").strip()
+    lower_text = normalized.lower()
+    found_skills = sorted(skill for skill in COMMON_SKILLS if skill in lower_text)
+    
+    # Base Salary Benchmarks in USD (annual)
+    base_min = 85000
+    base_avg = 120000
+    base_max = 160000
+    
+    if any(k in lower_role for k in ["ai", "ml", "machine learning", "deep learning", "ai/ml"]):
+        base_min, base_avg, base_max = 110000, 155000, 210000
+    elif any(k in lower_role for k in ["data scientist", "data science"]):
+        base_min, base_avg, base_max = 100000, 145000, 190000
+    elif any(k in lower_role for k in ["devops", "cloud", "site reliability", "sre"]):
+        base_min, base_avg, base_max = 105000, 148000, 195000
+    elif any(k in lower_role for k in ["data engineer"]):
+        base_min, base_avg, base_max = 100000, 142000, 185000
+    elif any(k in lower_role for k in ["full stack", "fullstack"]):
+        base_min, base_avg, base_max = 95000, 135000, 178000
+    elif any(k in lower_role for k in ["backend", "python developer", "java developer"]):
+        base_min, base_avg, base_max = 92000, 130000, 172000
+    elif any(k in lower_role for k in ["frontend", "web developer", "react"]):
+        base_min, base_avg, base_max = 88000, 125000, 165000
+    elif any(k in lower_role for k in ["data analyst"]):
+        base_min, base_avg, base_max = 75000, 105000, 140000
+    elif any(k in lower_role for k in ["lead", "principal", "manager", "architect"]):
+        base_min, base_avg, base_max = 135000, 185000, 245000
+
+    # Experience Multiplier
+    exp_mult = 1.0
+    if any(k in lower_exp for k in ["fresher", "entry", "0-1", "0-2"]):
+        exp_mult = 0.75
+    elif any(k in lower_exp for k in ["1-3", "2-4"]):
+        exp_mult = 0.90
+    elif any(k in lower_exp for k in ["3-5", "4-6"]):
+        exp_mult = 1.10
+    elif any(k in lower_exp for k in ["5-8", "6-8"]):
+        exp_mult = 1.35
+    elif any(k in lower_exp for k in ["8+", "10+", "senior", "principal"]):
+        exp_mult = 1.65
+
+    # Currency & Location Multiplier
+    currency_symbol = "$"
+    currency_code = "USD"
+    loc_mult = 1.0
+
+    if any(k in lower_loc for k in ["india", "inr", "bangalore", "mumbai", "delhi", "pune", "hyderabad"]):
+        currency_symbol = "₹"
+        currency_code = "INR"
+        loc_mult = 10.0
+    elif any(k in lower_loc for k in ["uk", "london", "england", "gbp", "united kingdom"]):
+        currency_symbol = "£"
+        currency_code = "GBP"
+        loc_mult = 0.78
+    elif any(k in lower_loc for k in ["europe", "germany", "france", "berlin", "amsterdam", "eur"]):
+        currency_symbol = "€"
+        currency_code = "EUR"
+        loc_mult = 0.85
+    elif any(k in lower_loc for k in ["san francisco", "sf", "bay area", "new york", "ny", "seattle"]):
+        loc_mult = 1.30
+    elif any(k in lower_loc for k in ["austin", "chicago", "boston", "toronto", "canada"]):
+        loc_mult = 1.10
+
+    # Skill Premium Multiplier (+4% per high-demand skill up to 25%)
+    high_value_skills = {"pytorch", "tensorflow", "aws", "kubernetes", "docker", "react", "next.js", "python", "system architecture", "terraform", "microservices"}
+    skill_matches = [s for s in found_skills if s in high_value_skills]
+    skill_bonus_pct = min(0.25, len(skill_matches) * 0.04)
+    skill_mult = 1.0 + skill_bonus_pct
+
+    # Final Computed Salaries
+    min_sal = int(round(base_min * exp_mult * loc_mult * skill_mult / 500) * 500)
+    avg_sal = int(round(base_avg * exp_mult * loc_mult * skill_mult / 500) * 500)
+    max_sal = int(round(base_max * exp_mult * loc_mult * skill_mult / 500) * 500)
+    
+    # Financial Breakdown Estimates
+    base_pay = int(round(avg_sal * 0.85))
+    performance_bonus = int(round(avg_sal * 0.10))
+    equity_grant = int(round(avg_sal * 0.05))
+
+    # Value Justification Bullet Points
+    value_points = []
+    if found_skills:
+        top_s_str = ", ".join([s.title() for s in found_skills[:5]])
+        value_points.append(f"Demonstrated technical mastery in high-demand industry skills: {top_s_str}.")
+    else:
+        value_points.append("Proven technical adaptability and solid foundational knowledge in core domain tools.")
+        
+    if re.search(r"\b\d+([,.]\d+)?\s*%?|\$\s*\d+", lower_text):
+        value_points.append("Proven track record of driving quantified business impact, system scalability, and cost efficiency.")
+    else:
+        value_points.append("Hands-on execution experience delivering complex project deliverables under tight deadlines.")
+
+    value_points.append(f"Direct alignment with target market requirements for {job_role or 'Software Engineer'} ({experience_years}).")
+    value_points.append("Strong cross-functional collaboration, technical problem solving, and production system reliability.")
+
+    # Negotiation Scripts
+    formatted_avg = f"{currency_symbol}{avg_sal:,}"
+    formatted_max = f"{currency_symbol}{max_sal:,}"
+    formatted_min = f"{currency_symbol}{min_sal:,}"
+
+    phone_script = (
+        f"Recruiter/Hiring Manager: 'We are excited to offer you the {job_role or 'target'} role at {formatted_min} base salary.'\n\n"
+        f"Candidate Response:\n"
+        f"'Thank you so much! I am extremely excited about the team and the vision at your company. Based on my hands-on experience in "
+        f"{', '.join([s.title() for s in found_skills[:4]]) if found_skills else 'software engineering'} and current market data for "
+        f"{job_role or 'this role'} in {location or 'this location'} with {experience_years} of experience, my research indicates that total compensation for this level typically ranges between "
+        f"{formatted_avg} and {formatted_max}.\n\n"
+        f"Given my proven achievements and immediate readiness to deliver value, I would be thrilled to sign immediately if we can align around "
+        f"{formatted_avg} base salary with an annual performance bonus.'"
+    )
+
+    email_template = (
+        f"Subject: Compensation Discussion – {job_role or 'Candidate Application'}\n\n"
+        f"Dear Hiring Team,\n\n"
+        f"Thank you for extending the offer for the {job_role or 'target'} role. I am very enthusiastic about joining the team and contributing to your upcoming initiatives.\n\n"
+        f"Before finalizing the agreement, I wanted to discuss the compensation package. After reviewing benchmark market data for {job_role or 'this role'} in {location or 'our region'} "
+        f"and taking into account my specialized expertise in {', '.join([s.title() for s in found_skills[:4]]) if found_skills else 'core domain technical skills'}, "
+        f"the market average sits between {formatted_avg} and {formatted_max}.\n\n"
+        f"To summarize the key value points I bring to the team:\n"
+        + "".join([f"• {vp}\n" for vp in value_points]) +
+        f"\nGiven these factors, I would be grateful if we could adjust the target base salary to {formatted_avg}. "
+        f"I am confident this reflects the value I will bring to the organization and look forward to reaching a mutually beneficial agreement.\n\n"
+        f"Best regards,\n[Your Name]"
+    )
+
+    return {
+        "job_role": job_role or "Software Engineer",
+        "location": location or "Remote",
+        "experience_years": experience_years or "3-5 Years",
+        "currency_symbol": currency_symbol,
+        "currency_code": currency_code,
+        "min_salary": min_sal,
+        "market_avg": avg_sal,
+        "max_salary": max_sal,
+        "base_pay": base_pay,
+        "performance_bonus": performance_bonus,
+        "equity_grant": equity_grant,
+        "skill_premium_pct": int(skill_bonus_pct * 100),
+        "detected_skills": [s.title() for s in found_skills],
+        "value_justifications": value_points,
+        "phone_script": phone_script,
+        "email_template": email_template
+    }
+
+
+@analysis_bp.route("/salary-negotiator", methods=["POST"])
+@jwt_required(optional=True)
+def salary_negotiator():
+    text = (request.form.get("resume_text") or "").strip()
+    uploaded_file = request.files.get("file")
+    job_role = (request.form.get("job_role") or "Software Engineer").strip()
+    location = (request.form.get("location") or "Remote").strip()
+    experience_years = (request.form.get("experience_years") or "3-5 Years").strip()
+
+    if uploaded_file and uploaded_file.filename:
+        try:
+            extracted = _extract_file_text(uploaded_file).strip()
+            if extracted:
+                text = extracted
+        except Exception:
+            pass
+
+    res = _calculate_salary_market(text, job_role, location, experience_years)
+    return jsonify(res), 200
+
