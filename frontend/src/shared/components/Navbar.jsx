@@ -1,6 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import {
+  LuFilePlus,
+  LuSearch,
+  LuBriefcase,
+  LuFilePenLine,
+  LuUser,
+  LuFolder,
+  LuLogOut
+} from 'react-icons/lu';
 
 const Navbar = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -52,30 +61,34 @@ const Navbar = () => {
           <div className="flex items-center space-x-2">
             <Link
               to="/builder"
-              className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+              className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
             >
-              ✏️ Create Resume
+              <LuFilePlus className="w-4 h-4 text-blue-600" />
+              <span>Create Resume</span>
             </Link>
             <Link
               to="/analyze"
-              className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer"
+              className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer flex items-center gap-2"
             >
-              🔍 Analyze
+              <LuSearch className="w-4 h-4 text-blue-600" />
+              <span>Analyze</span>
             </Link>
             <Link
               to="/career-tools"
-              className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+              className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
             >
-              🚀 Career Tools
+              <LuBriefcase className="w-4 h-4 text-blue-600" />
+              <span>Career Tools</span>
             </Link>
 
             {isAuthenticated ? (
               <>
                 <Link
                   to="/custom-editor"
-                  className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+                  className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
                 >
-                  📝 WordPad Editor
+                  <LuFilePenLine className="w-4 h-4 text-blue-600" />
+                  <span>WordPad Editor</span>
                 </Link>
                 {/* User Avatar Dropdown */}
                 <div className="relative" ref={dropdownRef}>
@@ -98,23 +111,26 @@ const Navbar = () => {
                       <Link
                         to="/profile"
                         onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
                       >
-                        👤 Profile
+                        <LuUser className="w-4 h-4 text-blue-600" />
+                        <span>Profile</span>
                       </Link>
                       <Link
                         to="/my-resumes"
                         onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
                       >
-                        📁 My Resumes
+                        <LuFolder className="w-4 h-4 text-blue-600" />
+                        <span>My Resumes</span>
                       </Link>
                       <button
                         id="logout-btn"
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-medium"
                       >
-                        🚪 Logout
+                        <LuLogOut className="w-4 h-4 text-red-600" />
+                        <span>Logout</span>
                       </button>
                     </div>
                   )}

@@ -1,4 +1,11 @@
 import { useAuth } from '../../context/AuthContext';
+import {
+  LuLayoutTemplate,
+  LuCircleCheck,
+  LuCloud,
+  LuMic,
+  LuFileText
+} from 'react-icons/lu';
 
 const Home = () => {
   const { isAuthenticated, user } = useAuth();
@@ -24,17 +31,23 @@ const Home = () => {
       {/* Feature cards */}
       <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
         <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all">
-          <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-2xl font-bold mb-4">50+</div>
+          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4 border border-blue-100 shadow-sm">
+            <LuLayoutTemplate className="w-6 h-6" />
+          </div>
           <h3 className="text-xl font-bold mb-2">Premium Templates</h3>
           <p className="text-gray-600">Choose from modern, professional, and creative designs tailored for different industries.</p>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all">
-          <div className="w-12 h-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center text-2xl font-bold mb-4">✓</div>
+          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-4 border border-emerald-100 shadow-sm">
+            <LuCircleCheck className="w-6 h-6" />
+          </div>
           <h3 className="text-xl font-bold mb-2">ATS Optimized</h3>
           <p className="text-gray-600">Ensure your resume passes Applicant Tracking Systems with our structured formats.</p>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all">
-          <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center text-2xl font-bold mb-4">💾</div>
+          <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-4 border border-purple-100 shadow-sm">
+            <LuCloud className="w-6 h-6" />
+          </div>
           <h3 className="text-xl font-bold mb-2">Cloud Saved</h3>
           <p className="text-gray-600">Save your resumes to your account and access them anytime. Your work is never lost.</p>
         </div>
@@ -78,19 +91,19 @@ const Home = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
           {/* AI Interview Prep Card */}
           <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all">
-            <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-3xl mb-5">
-              🎙️
+            <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-5 border border-indigo-100 shadow-sm">
+              <LuMic className="w-7 h-7" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">AI Interview Prep</h3>
             <p className="text-gray-600 leading-relaxed">
-              Generate domain-specific technical & behavioral interview questions tailored directly to your target role and resume skills. Practice with instant AI answers.
+              Generate domain-specific technical &amp; behavioral interview questions tailored directly to your target role and resume skills. Practice with instant AI answers.
             </p>
           </div>
 
           {/* Cover Letter Generator Card */}
           <div className="bg-white p-8 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all">
-            <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-3xl mb-5">
-              ✉️
+            <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center mb-5 border border-purple-100 shadow-sm">
+              <LuFileText className="w-7 h-7" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">Cover Letter Generator</h3>
             <p className="text-gray-600 leading-relaxed">

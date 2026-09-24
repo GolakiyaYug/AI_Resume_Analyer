@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { jsPDF } from 'jspdf';
 import api from '../../shared/utils/api';
+import {
+  LuCompass,
+  LuChartColumn,
+  LuMic,
+  LuFileText
+} from 'react-icons/lu';
 
 // Comprehensive global skill dictionary for client & API matching
 const GLOBAL_SKILLS_LIST = [
@@ -1194,8 +1200,8 @@ Applicant / Candidate`;
             {/* Card 1: Career Path */}
             <div className="bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-7 flex flex-col justify-between space-y-5">
               <div className="space-y-3">
-                <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-3xl border border-blue-100">
-                  🎯
+                <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center border border-blue-100 shadow-sm">
+                  <LuCompass className="w-7 h-7 text-blue-600" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900">Career Path</h3>
                 <p className="text-xs text-gray-600 leading-relaxed">
@@ -1214,8 +1220,8 @@ Applicant / Candidate`;
             {/* Card 2: Skill Gap Analysis */}
             <div className="bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-7 flex flex-col justify-between space-y-5">
               <div className="space-y-3">
-                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-3xl border border-emerald-100">
-                  📊
+                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-100 shadow-sm">
+                  <LuChartColumn className="w-7 h-7 text-emerald-600" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900">Skill Gap Analysis</h3>
                 <p className="text-xs text-gray-600 leading-relaxed">
@@ -1234,8 +1240,8 @@ Applicant / Candidate`;
             {/* Card 3: Interview Prep */}
             <div className="bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-7 flex flex-col justify-between space-y-5">
               <div className="space-y-3">
-                <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl border border-indigo-100">
-                  💡
+                <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-100 shadow-sm">
+                  <LuMic className="w-7 h-7 text-indigo-600" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900">AI Interview Preparation</h3>
                 <p className="text-xs text-gray-600 leading-relaxed">
@@ -1254,8 +1260,8 @@ Applicant / Candidate`;
             {/* Card 4: Cover Letter Generator */}
             <div className="bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-7 flex flex-col justify-between space-y-5">
               <div className="space-y-3">
-                <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center text-3xl border border-purple-100">
-                  📝
+                <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center border border-purple-100 shadow-sm">
+                  <LuFileText className="w-7 h-7 text-purple-600" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900">Cover Letter</h3>
                 <p className="text-xs text-gray-600 leading-relaxed">
