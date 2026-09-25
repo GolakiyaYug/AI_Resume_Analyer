@@ -1,5 +1,6 @@
 import io
 import json
+import random
 import re
 import zipfile
 import docx
@@ -597,30 +598,72 @@ def _calculate_salary_market(text, job_role, location, experience_years):
     formatted_max = f"{currency_symbol}{max_sal:,}"
     formatted_min = f"{currency_symbol}{min_sal:,}"
 
-    phone_script = (
-        f"Recruiter/Hiring Manager: 'We are excited to offer you the {job_role or 'target'} role at {formatted_min} base salary.'\n\n"
-        f"Candidate Response:\n"
-        f"'Thank you so much! I am extremely excited about the team and the vision at your company. Based on my hands-on experience in "
-        f"{', '.join([s.title() for s in found_skills[:4]]) if found_skills else 'software engineering'} and current market data for "
-        f"{job_role or 'this role'} in {location or 'this location'} with {experience_years} of experience, my research indicates that total compensation for this level typically ranges between "
-        f"{formatted_avg} and {formatted_max}.\n\n"
-        f"Given my proven achievements and immediate readiness to deliver value, I would be thrilled to sign immediately if we can align around "
-        f"{formatted_avg} base salary with an annual performance bonus.'"
-    )
+    phone_script_variants = [
+        (
+            f"Recruiter/Hiring Manager: 'We are excited to offer you the {job_role or 'target'} role at {formatted_min} base salary.'\n\n"
+            f"Candidate Verbal Response:\n"
+            f"'Thank you so much! I am extremely excited about the team and the vision at your company. Based on my hands-on experience in "
+            f"{', '.join([s.title() for s in found_skills[:4]]) if found_skills else 'core domain competencies'} and current market data for "
+            f"{job_role or 'this role'} in {location or 'this location'} with {experience_years} of experience, my research indicates that total compensation for this level typically ranges between "
+            f"{formatted_avg} and {formatted_max}.\n\n"
+            f"Given my proven achievements and immediate readiness to deliver value, I would be thrilled to sign immediately if we can align around "
+            f"{formatted_avg} base salary with an annual performance bonus.'"
+        ),
+        (
+            f"Recruiter/Hiring Manager: 'We would like to move forward with an offer of {formatted_min} for the {job_role or 'position'}.'\n\n"
+            f"Candidate Verbal Response:\n"
+            f"'I really appreciate the offer and I am very inspired by the work your team is doing. Having evaluated industry compensation benchmarks for {job_role or 'this role'} in {location or 'the region'}, "
+            f"professionals with {experience_years} of experience and expertise in {', '.join([s.title() for s in found_skills[:4]]) if found_skills else 'key technical tools'} generally command between {formatted_avg} and {formatted_max}.\n\n"
+            f"I am eager to make an immediate impact on your upcoming milestones. Would you be open to adjusting the base target to {formatted_avg}?'"
+        ),
+        (
+            f"Recruiter/Hiring Manager: 'Our starting compensation for the {job_role or 'role'} is set at {formatted_min}.'\n\n"
+            f"Candidate Verbal Response:\n"
+            f"'Thank you for sharing the details! I am enthusiastic about this position and confident in my fit for the team. "
+            f"Taking into account my specialized skillset in {', '.join([s.title() for s in found_skills[:4]]) if found_skills else 'relevant technologies'} along with market rates in {location or 'this region'}, "
+            f"the standard target range sits at {formatted_avg} to {formatted_max}.\n\n"
+            f"If we can meet at {formatted_avg} base salary, I am prepared to accept the offer today and begin onboarding right away.'"
+        )
+    ]
 
-    email_template = (
-        f"Subject: Compensation Discussion – {job_role or 'Candidate Application'}\n\n"
-        f"Dear Hiring Team,\n\n"
-        f"Thank you for extending the offer for the {job_role or 'target'} role. I am very enthusiastic about joining the team and contributing to your upcoming initiatives.\n\n"
-        f"Before finalizing the agreement, I wanted to discuss the compensation package. After reviewing benchmark market data for {job_role or 'this role'} in {location or 'our region'} "
-        f"and taking into account my specialized expertise in {', '.join([s.title() for s in found_skills[:4]]) if found_skills else 'core domain technical skills'}, "
-        f"the market average sits between {formatted_avg} and {formatted_max}.\n\n"
-        f"To summarize the key value points I bring to the team:\n"
-        + "".join([f"• {vp}\n" for vp in value_points]) +
-        f"\nGiven these factors, I would be grateful if we could adjust the target base salary to {formatted_avg}. "
-        f"I am confident this reflects the value I will bring to the organization and look forward to reaching a mutually beneficial agreement.\n\n"
-        f"Best regards,\n[Your Name]"
-    )
+    email_template_variants = [
+        (
+            f"Subject: Compensation Discussion – {job_role or 'Candidate Application'}\n\n"
+            f"Dear Hiring Team,\n\n"
+            f"Thank you for extending the offer for the {job_role or 'target'} role. I am very enthusiastic about joining the team and contributing to your upcoming initiatives.\n\n"
+            f"Before finalizing the agreement, I wanted to discuss the compensation package. After reviewing benchmark market data for {job_role or 'this role'} in {location or 'our region'} "
+            f"and taking into account my specialized expertise in {', '.join([s.title() for s in found_skills[:4]]) if found_skills else 'core domain technical skills'}, "
+            f"the market average sits between {formatted_avg} and {formatted_max}.\n\n"
+            f"To summarize the key value points I bring to the team:\n"
+            + "".join([f"• {vp}\n" for vp in value_points]) +
+            f"\nGiven these factors, I would be grateful if we could adjust the target base salary to {formatted_avg}. "
+            f"I am confident this reflects the value I will bring to the organization and look forward to reaching a mutually beneficial agreement.\n\n"
+            f"Best regards,\n[Your Name]"
+        ),
+        (
+            f"Subject: Offer Review & Compensation Alignment – {job_role or 'Position'}\n\n"
+            f"Dear Hiring Manager,\n\n"
+            f"Thank you sincerely for extending the offer to join your team as a {job_role or 'team member'}. I am thrilled about the prospect of bringing my skills in {', '.join([s.title() for s in found_skills[:4]]) if found_skills else 'engineering & technical execution'} to your projects.\n\n"
+            f"Upon reviewing the offer details alongside current industry compensation metrics for {experience_years} experience in {location or 'this market'}, total compensation for similar roles benchmarks between {formatted_avg} and {formatted_max}.\n\n"
+            f"My background uniquely equips me to add immediate value:\n"
+            + "".join([f"• {vp}\n" for vp in value_points]) +
+            f"\nWith these contributions in mind, could we explore bringing the base salary closer to {formatted_avg}? I am eager to finalize our agreement and get started.\n\n"
+            f"Warm regards,\n[Your Name]"
+        ),
+        (
+            f"Subject: Counter-Offer & Next Steps – {job_role or 'Role Application'}\n\n"
+            f"Dear Recruitment Team,\n\n"
+            f"I greatly appreciate the offer for the {job_role or 'target'} position. Your team's vision resonates deeply with me, and I am excited about the impact we can make together.\n\n"
+            f"I would like to discuss aligning the base compensation with current market expectations. Based on data for {job_role or 'this position'} with {experience_years} of background in {location or 'this market'}, median market pay is positioned around {formatted_avg}, reaching up to {formatted_max}.\n\n"
+            f"Key strengths I bring include:\n"
+            + "".join([f"• {vp}\n" for vp in value_points]) +
+            f"\nIf you can adjust the base compensation to {formatted_avg}, I would be delighted to accept immediately.\n\n"
+            f"Respectfully,\n[Your Name]"
+        )
+    ]
+
+    phone_script = random.choice(phone_script_variants)
+    email_template = random.choice(email_template_variants)
 
     return {
         "job_role": job_role or "Software Engineer",
@@ -660,6 +703,258 @@ def salary_negotiator():
             pass
 
     res = _calculate_salary_market(text, job_role, location, experience_years)
+    return jsonify(res), 200
+
+
+def _generate_linkedin_hub_data(text, target_role, tone):
+    role_title = (target_role or "Software Engineer").strip()
+    selected_tone = (tone or "Professional & Catchy").strip()
+
+    # Extract skills from text
+    found_skills = _extract_skills_from_text(text)
+    if not found_skills:
+        found_skills = ["python", "sql", "problem solving", "system architecture", "git"]
+    found_skills = [s.title() for s in found_skills]
+
+    top_skills_str = ", ".join(found_skills[:5])
+    skills_bullet_str = "\n".join([f"• {s}" for s in found_skills[:8]])
+
+    # Build Role & Skill-based Hashtags
+    role_clean_words = re.findall(r"[A-Za-z0-9]+", role_title)
+    role_hashtags = " ".join([f"#{w}" for w in role_clean_words])
+    skill_hashtags = " ".join([f"#{s.replace(' ', '').replace('.', '').replace('/', '')}" for s in found_skills[:6]])
+    hashtags = f"{role_hashtags} {skill_hashtags} #CareerGrowth #Innovation #TechCareers #Networking".strip()
+
+    # Headline Variants
+    headline_variants = [
+        f"🚀 {role_title} | Specializing in {top_skills_str} | Building Scalable High-Impact Systems",
+        f"💡 {role_title} | Expertise in {top_skills_str} | Driving Technical Excellence & Innovation",
+        f"⚡ {role_title} | {top_skills_str} | Passionate about System Architecture & Engineering Performance",
+        f"🌟 {role_title} | Technical Mastery in {top_skills_str} | Solving Complex Problems at Scale"
+    ]
+    headline = random.choice(headline_variants)
+
+    # Tone-based "About" Section Summaries (Multiple Dynamic Variants per Tone)
+    if "Bold" in selected_tone or "Executive" in selected_tone:
+        about_variants = [
+            (
+                f"As a results-oriented {role_title}, I combine technical depth with strategic vision to architect high-performance systems and drive measurable business impact.\n\n"
+                f"Throughout my technical journey, I have cultivated deep expertise in:\n"
+                f"{skills_bullet_str}\n\n"
+                f"🎯 Core Strengths & Value Drivers:\n"
+                f"• System Architecture & Scalability: Designing resilient, production-ready solutions.\n"
+                f"• Cross-Functional Leadership: Partnering with product teams and stakeholders to turn complex goals into software.\n"
+                f"• Continuous Technical Rigor: Championing code quality, performance optimization, and modern best practices.\n\n"
+                f"I thrive in fast-paced environments where innovation, analytical problem-solving, and execution excellence are paramount.\n\n"
+                f"📩 Open to connecting with fellow engineers, tech leaders, and recruiters. Let's discuss new opportunities and technical initiatives!\n\n"
+                f"{hashtags}"
+            ),
+            (
+                f"Strategic and execution-focused {role_title} dedicated to leading high-capacity engineering initiatives and delivering scalable enterprise tools.\n\n"
+                f"💼 Primary Domain Competencies:\n"
+                f"{skills_bullet_str}\n\n"
+                f"🚀 Executive Focus Areas:\n"
+                f"• Enterprise Reliability: Scaling backend services, microservices, and database models.\n"
+                f"• Engineering Governance: Enforcing clean architecture, peer reviews, and automated CI/CD deployment.\n"
+                f"• Strategic Alignment: Aligning technical infrastructure with high-growth business objectives.\n\n"
+                f"Looking to drive transformative outcomes and partner with visionary engineering teams.\n\n"
+                f"📫 Connect with me to discuss strategic technical roles and collaborations.\n\n"
+                f"{hashtags}"
+            )
+        ]
+    elif "Enthusiastic" in selected_tone or "Passion" in selected_tone:
+        about_variants = [
+            (
+                f"Passionate, curiosity-driven {role_title} on a mission to build technology that makes a real difference! ✨\n\n"
+                f"I love taking complex challenges and turning them into clean, elegant, and user-focused technical solutions. My core skill set centers around:\n"
+                f"{skills_bullet_str}\n\n"
+                f"🌟 What excites me most:\n"
+                f"• Solving tough engineering puzzles with creative, modern approaches.\n"
+                f"• Collaborating with passionate teams and learning new technologies every single day.\n"
+                f"• Delivering impactful tools and systems that empower users and scale seamlessly.\n\n"
+                f"Always eager to expand my network, exchange ideas, and explore exciting career opportunities in {role_title}!\n\n"
+                f"📬 Feel free to drop a message or connect—I'd love to chat!\n\n"
+                f"{hashtags}"
+            ),
+            (
+                f"Hi there! 👋 I am an energetic {role_title} who loves building digital solutions, hacking through tricky bugs, and bringing ideas to life!\n\n"
+                f"🔥 My Core Technical Arsenal:\n"
+                f"{skills_bullet_str}\n\n"
+                f"💡 What drives me forward:\n"
+                f"• The thrill of seeing clean code deploy seamlessly into production.\n"
+                f"• Brainstorming with incredible cross-functional teams to solve real-world problems.\n"
+                f"• Staying ahead of technological shifts and continuously expanding my domain knowledge.\n\n"
+                f"Always open for a friendly tech chat, networking, or exploring career opportunities!\n\n"
+                f"💬 Drop me a note—let's connect and innovate together!\n\n"
+                f"{hashtags}"
+            )
+        ]
+    elif "Technical" in selected_tone or "Metrics" in selected_tone:
+        about_variants = [
+            (
+                f"Hands-on {role_title} focused on building robust, scalable infrastructure and end-to-end software solutions.\n\n"
+                f"🛠 Technical Stack & Competencies:\n"
+                f"{skills_bullet_str}\n\n"
+                f"📊 Key Focus Areas:\n"
+                f"• High-Performance System Engineering: Optimizing latency, resource allocation, and throughput.\n"
+                f"• Modular Architecture: Applying design patterns, unit testing, and automated deployment pipelines.\n"
+                f"• Data & Algorithmic Problem Solving: Translating raw data and business rules into efficient algorithms.\n\n"
+                f"Directly focused on delivering reliable technical outcomes and tackling complex engineering roadmaps.\n\n"
+                f"📫 Open to technical discussions, peer networking, and strategic {role_title} opportunities.\n\n"
+                f"{hashtags}"
+            ),
+            (
+                f"Technical {role_title} specializing in system performance, modular engineering, and data pipeline efficiency.\n\n"
+                f"💻 Core Tech Stack:\n"
+                f"{skills_bullet_str}\n\n"
+                f"⚡ Engineering Capabilities:\n"
+                f"• Code & Query Optimization: Enhancing database indexing, API throughput, and execution speed.\n"
+                f"• Production Reliability: Implementing rigorous error handling, logging, and monitoring.\n"
+                f"• Test-Driven Development: Writing test suites to guarantee long-term stability and regression resistance.\n\n"
+                f"Committed to technical excellence, continuous delivery, and clean code hygiene.\n\n"
+                f"📩 Open for technical collaboration, engineering networking, and targeted role discussions.\n\n"
+                f"{hashtags}"
+            )
+        ]
+    else:  # Professional & Catchy (Default)
+        about_variants = [
+            (
+                f"Welcome to my profile! I am a dedicated {role_title} committed to building high-quality software, optimizing technical workflows, and delivering innovative digital solutions.\n\n"
+                f"With a strong foundation in core engineering principles, my technical toolkit includes:\n"
+                f"{skills_bullet_str}\n\n"
+                f"💡 What I Bring to the Table:\n"
+                f"• Proven ability to design and implement resilient systems using {top_skills_str}.\n"
+                f"• Strong analytical mindset with a focus on clean code, system scalability, and business impact.\n"
+                f"• Collaborative approach to teamwork, technical documentation, and agile execution.\n\n"
+                f"I am actively seeking opportunities to contribute to forward-thinking tech teams as a {role_title}.\n\n"
+                f"🤝 Let's connect! Always happy to network with recruiters, hiring managers, and fellow tech enthusiasts.\n\n"
+                f"{hashtags}"
+            ),
+            (
+                f"Hello! As a professional {role_title}, I combine hands-on problem solving with a deep passion for modern software engineering.\n\n"
+                f"🛠 Featured Competencies & Tools:\n"
+                f"{skills_bullet_str}\n\n"
+                f"🌟 Highlights & Achievements:\n"
+                f"• Experienced in building robust, production-grade applications with {top_skills_str}.\n"
+                f"• Passionate about software craftsmanship, performance optimization, and clean architectural design.\n"
+                f"• Proven track record of fast adaptation to new stacks, tools, and fast-paced team environments.\n\n"
+                f"I am eager to leverage my skills to build high-value products and accelerate engineering goals.\n\n"
+                f"✉️ Feel free to connect or send a message regarding potential roles or tech discussions!\n\n"
+                f"{hashtags}"
+            )
+        ]
+
+    about_summary = random.choice(about_variants)
+
+    # Networking / Connection Messages
+    recruiter_note_variants = [
+        f"Hi! I came across your profile while exploring {role_title} opportunities. With hands-on experience in {top_skills_str}, I would love to connect and stay in touch regarding potential roles on your team!",
+        f"Hello! I am a {role_title} specialized in {top_skills_str}. I am currently expanding my network with technical recruiters and would be thrilled to connect!",
+        f"Hi! I admire your work in talent acquisition. As a {role_title} passionate about {found_skills[0] if found_skills else 'tech'}, I'd love to add you to my professional network.",
+        f"Greetings! I noticed you recruit for high-performing engineering teams. I specialize in {role_title} ({top_skills_str}) and would appreciate connecting with you."
+    ]
+
+    recruiter_full_variants = [
+        (
+            f"Subject: Inquiring About {role_title} Opportunities\n\n"
+            f"Dear [Recruiter Name],\n\n"
+            f"I hope this message finds you well! I have been following your recruiting updates and am very impressed by the talent and engineering culture at your organization.\n\n"
+            f"As a {role_title} with specialized experience in {top_skills_str}, I am actively exploring opportunities where I can contribute to high-impact projects. My background combines technical execution, clean system design, and collaborative problem-solving.\n\n"
+            f"Key technical competencies include:\n"
+            f"{skills_bullet_str}\n\n"
+            f"I would welcome the opportunity to connect for a quick introductory chat to discuss how my qualifications align with your active or upcoming roles.\n\n"
+            f"Thank you for your time, and I look forward to connecting!\n\n"
+            f"Best regards,\n[Your Name]\n[LinkedIn Profile Link]"
+        ),
+        (
+            f"Subject: Application & Introduction – {role_title}\n\n"
+            f"Hello [Recruiter Name],\n\n"
+            f"I hope you are having a productive week! I am reaching out because I am very interested in software engineering and {role_title} opportunities within your company.\n\n"
+            f"With a strong foundation in {top_skills_str}, I bring a track record of building reliable backend systems, writing clean modular code, and collaborating closely across teams.\n\n"
+            f"Core skill highlights:\n"
+            f"{skills_bullet_str}\n\n"
+            f"If you are currently sourcing talent for {role_title} positions, I would be delighted to share my resume and discuss how I can add immediate value to your pipeline.\n\n"
+            f"Warm regards,\n[Your Name]"
+        )
+    ]
+
+    hiring_manager_note_variants = [
+        f"Hi [Hiring Manager Name], I really admire your team's work in tech innovation. As a {role_title} skilled in {top_skills_str}, I'd love to connect and follow your team's progress!",
+        f"Hello [Hiring Manager Name]! I am a {role_title} with a strong focus on {top_skills_str}. I am eager to connect with engineering leaders like you in the industry.",
+        f"Hi! I came across your work leading engineering teams. I specialize in {role_title} ({top_skills_str}) and would love to join your professional network.",
+        f"Hello [Hiring Manager Name]! Your team's technical achievements in engineering are inspiring. I work in {role_title} and would love to stay connected."
+    ]
+
+    hiring_manager_full_variants = [
+        (
+            f"Subject: Connecting & Technical Inquiry – {role_title}\n\n"
+            f"Dear [Hiring Manager Name],\n\n"
+            f"I hope you are having a great week! I have been following your team's accomplishments in engineering and wanted to reach out directly.\n\n"
+            f"I am a {role_title} with hands-on expertise in {top_skills_str}. I focus on building scalable architectures, optimizing code performance, and delivering reliable features.\n\n"
+            f"A snapshot of my technical strengths:\n"
+            f"{skills_bullet_str}\n\n"
+            f"If you are currently expanding your engineering team or open to informal technical chats, I would be thrilled to introduce myself and share how I could add value to your roadmap.\n\n"
+            f"Thanks for your time and consideration!\n\n"
+            f"Best regards,\n[Your Name]"
+        ),
+        (
+            f"Subject: Technical Synergy & Introduction – {role_title}\n\n"
+            f"Dear [Hiring Manager Name],\n\n"
+            f"I hope all is well. I am reaching out to connect with engineering leadership in the {role_title} domain.\n\n"
+            f"My technical background centers around {top_skills_str}. I specialize in architecting efficient workflows, solving complex technical challenges, and executing product roadmaps.\n\n"
+            f"Key competencies:\n"
+            f"{skills_bullet_str}\n\n"
+            f"I would be glad to connect and learn more about your team's ongoing technical initiatives.\n\n"
+            f"Sincerely,\n[Your Name]"
+        )
+    ]
+
+    peer_note_variants = [
+        f"Hi [Name]! I noticed we share a strong background in {role_title} and {found_skills[0] if found_skills else 'software'}. Always great connecting with fellow engineers—looking forward to following your work!",
+        f"Hello! As a fellow {role_title}, I'm expanding my network of technical peers working on {top_skills_str}. Excited to connect!",
+        f"Hi! Great to see your work in tech. I also work in {role_title} with a focus on {top_skills_str}. Let know if you'd like to exchange ideas sometime!",
+        f"Hey [Name]! Love connecting with fellow builders and {role_title} professionals. Looking forward to staying connected on LinkedIn!"
+    ]
+
+    return {
+        "target_role": role_title,
+        "tone": selected_tone,
+        "headline": headline,
+        "about_summary": about_summary,
+        "hashtags": hashtags,
+        "detected_skills": found_skills[:8],
+        "key_highlights": [
+            f"Specialized domain focus in {top_skills_str}",
+            f"Proven track record of building production solutions and clean architectures",
+            f"Strong cross-functional collaboration and technical problem-solving capabilities"
+        ],
+        "networking_messages": {
+            "recruiter_note": random.choice(recruiter_note_variants),
+            "recruiter_full": random.choice(recruiter_full_variants),
+            "hiring_manager_note": random.choice(hiring_manager_note_variants),
+            "hiring_manager_full": random.choice(hiring_manager_full_variants),
+            "peer_note": random.choice(peer_note_variants)
+        }
+    }
+
+
+@analysis_bp.route("/linkedin-hub", methods=["POST"])
+@jwt_required(optional=True)
+def linkedin_hub():
+    text = (request.form.get("resume_text") or "").strip()
+    uploaded_file = request.files.get("file")
+    target_role = (request.form.get("target_role") or "Software Engineer").strip()
+    tone = (request.form.get("tone") or "Professional & Catchy").strip()
+
+    if uploaded_file and uploaded_file.filename:
+        try:
+            extracted = _extract_file_text(uploaded_file).strip()
+            if extracted:
+                text = extracted
+        except Exception:
+            pass
+
+    res = _generate_linkedin_hub_data(text, target_role, tone)
     return jsonify(res), 200
 
 

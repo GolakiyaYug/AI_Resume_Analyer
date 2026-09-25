@@ -7,7 +7,8 @@ import {
   LuMic,
   LuFileText,
   LuDollarSign,
-  LuTrendingUp
+  LuTrendingUp,
+  LuShare2
 } from 'react-icons/lu';
 
 // Comprehensive global skill dictionary for client & API matching
@@ -520,6 +521,16 @@ const CareerToolsPage = ({ initialView = 'dashboard' }) => {
   const [scriptTab, setScriptTab] = useState('email'); // 'email' | 'phone'
   const [salaryCopySuccess, setSalaryCopySuccess] = useState(false);
   const [isSalaryRegenerating, setIsSalaryRegenerating] = useState(false);
+
+  // LinkedIn AI Hub State
+  const [linkedinFile, setLinkedinFile] = useState(null);
+  const [linkedinTargetRole, setLinkedinTargetRole] = useState('AI/ML Engineer');
+  const [linkedinTone, setLinkedinTone] = useState('Professional & Catchy'); // 'Professional & Catchy' | 'Bold & Executive' | 'Enthusiastic & Passionate' | 'Technical & Metrics-Driven'
+  const [linkedinResult, setLinkedinResult] = useState(null);
+  const [linkedinTab, setLinkedinTab] = useState('summary'); // 'summary' | 'networking'
+  const [networkSubTab, setNetworkSubTab] = useState('recruiter_note'); // 'recruiter_note' | 'recruiter_full' | 'hiring_manager_note' | 'hiring_manager_full' | 'peer_note'
+  const [linkedinCopySuccess, setLinkedinCopySuccess] = useState(false);
+  const [isLinkedinRegenerating, setIsLinkedinRegenerating] = useState(false);
 
   // Upload Resume File State
   const [resumeFile, setResumeFile] = useState(null);
@@ -1415,41 +1426,47 @@ Applicant / Candidate`;
     setLoading(true);
     setErrorMsg('');
 
-    let extractedText = '';
+    let extractedText = `${formData.skills} ${formData.interests}`;
     let extractedSkillsRaw = [];
 
+    const bodyFormData = new FormData();
     if (salaryFile) {
+      bodyFormData.append('file', salaryFile, salaryFile.name);
       try {
         const textFromFileName = extractSkillsFromText(salaryFile.name);
         extractedSkillsRaw.push(...textFromFileName);
-
         if (salaryFile.name.endsWith('.txt')) {
           extractedText = await salaryFile.text();
           const textSkills = extractSkillsFromText(extractedText);
           extractedSkillsRaw.push(...textSkills);
         }
-
-        const bodyFormData = new FormData();
-        bodyFormData.append('file', salaryFile, salaryFile.name);
-        bodyFormData.append('job_role', salaryJobRole);
-        bodyFormData.append('location', salaryLocation);
-        bodyFormData.append('experience_years', salaryExperience);
-
-        const res = await api.post('/api/analysis/salary-negotiator', bodyFormData);
-        if (res.data && res.data.market_avg) {
-          setSalaryResult(res.data);
-          setLoading(false);
-          setActiveView('salary-negotiator-output');
-          return;
-        }
-      } catch (err) {
-        console.warn('Backend salary negotiator API notice:', err?.response?.data?.message || err.message);
+      } catch (fileErr) {
+        console.warn('File text extraction warning:', fileErr);
       }
     } else {
-      extractedText = `${formData.skills} ${formData.interests}`;
       extractedSkillsRaw = extractSkillsFromText(extractedText);
     }
 
+    bodyFormData.append('job_role', salaryJobRole || 'Software Engineer');
+    bodyFormData.append('location', salaryLocation || 'Remote');
+    bodyFormData.append('experience_years', salaryExperience || '3-5 Years');
+    if (extractedText) {
+      bodyFormData.append('resume_text', extractedText);
+    }
+
+    try {
+      const res = await api.post('/api/analysis/salary-negotiator', bodyFormData);
+      if (res.data && (res.data.market_avg || res.data.email_template)) {
+        setSalaryResult({ ...res.data });
+        setLoading(false);
+        setActiveView('salary-negotiator-output');
+        return;
+      }
+    } catch (err) {
+      console.warn('Backend salary negotiator API notice:', err?.response?.data?.message || err.message);
+    }
+
+    // Client-side Fallback Calculation if API request fails
     const lowerRole = (salaryJobRole || 'Software Engineer').toLowerCase();
     const lowerLoc = (salaryLocation || 'Remote').toLowerCase();
     const lowerExp = (salaryExperience || '3-5 Years').toLowerCase();
@@ -1536,9 +1553,20 @@ Applicant / Candidate`;
       `Strong cross-functional leadership, technical problem-solving, and continuous execution reliability.`
     ];
 
-    const phoneScript = `Recruiter / Hiring Manager: "We are excited to extend an initial offer for the ${salaryJobRole} role at ${fmtMin} base salary."\n\nCandidate Verbal Response:\n"Thank you so much! I am thrilled about the opportunity to join the team and contribute to your vision. Based on my hands-on background in ${detectedSkillsCanonical.slice(0, 4).join(', ')} and current market research for ${salaryJobRole} roles in ${salaryLocation} with ${salaryExperience} of experience, the benchmark total compensation ranges between ${fmtAvg} and ${fmtMax}.\n\nGiven my immediate ability to deliver value and hit the ground running, I would be ready to sign immediately if we can align on a ${fmtAvg} base salary package with performance bonuses."`;
+    const phoneScriptVariants = [
+      `Recruiter / Hiring Manager: "We are excited to extend an initial offer for the ${salaryJobRole} role at ${fmtMin} base salary."\n\nCandidate Verbal Response:\n"Thank you so much! I am thrilled about the opportunity to join the team and contribute to your vision. Based on my hands-on background in ${detectedSkillsCanonical.slice(0, 4).join(', ')} and current market research for ${salaryJobRole} roles in ${salaryLocation} with ${salaryExperience} of experience, the benchmark total compensation ranges between ${fmtAvg} and ${fmtMax}.\n\nGiven my immediate ability to deliver value and hit the ground running, I would be ready to sign immediately if we can align on a ${fmtAvg} base salary package with performance bonuses."`,
+      `Recruiter / Hiring Manager: "We would like to move forward with an offer of ${fmtMin} for the ${salaryJobRole} position."\n\nCandidate Verbal Response:\n"I really appreciate the offer and I am very inspired by the work your team is doing. Having evaluated industry compensation benchmarks for ${salaryJobRole} in ${salaryLocation}, candidates with ${salaryExperience} of experience and expertise in ${detectedSkillsCanonical.slice(0, 4).join(', ')} command between ${fmtAvg} and ${fmtMax}.\n\nI am eager to make an immediate impact on your upcoming milestones. Would you be open to adjusting the base target to ${fmtAvg}?"`,
+      `Recruiter / Hiring Manager: "Our starting compensation for the ${salaryJobRole} role is set at ${fmtMin}."\n\nCandidate Verbal Response:\n"Thank you for sharing the details! I am enthusiastic about this position and confident in my fit for the team. Taking into account my specialized skillset in ${detectedSkillsCanonical.slice(0, 4).join(', ')} along with market rates in ${salaryLocation}, the standard target range sits at ${fmtAvg} to ${fmtMax}.\n\nIf we can meet at ${fmtAvg} base salary, I am prepared to accept the offer today and begin onboarding right away."`
+    ];
 
-    const emailTemplate = `Subject: Compensation Discussion – ${salaryJobRole} Application\n\nDear Hiring Team,\n\nThank you very much for extending the offer for the ${salaryJobRole} position at your company. I am genuinely excited about the role and confident in the value I can bring to your team.\n\nBefore finalizing the agreement, I would like to discuss the proposed compensation package. After conducting thorough market research for ${salaryJobRole} positions in ${salaryLocation} for candidates with ${salaryExperience} of experience, industry benchmarks indicate a market average between ${fmtAvg} and ${fmtMax}.\n\nKey value-justifications from my background supporting this tier include:\n` + valuePoints.map(vp => `• ${vp}`).join('\n') + `\n\nConsidering these qualifications, I would be grateful if we could adjust the base salary to ${fmtAvg}. I am confident this reflects the market rate for my skill set and look forward to concluding our agreement.\n\nSincerely,\n[Your Name]`;
+    const emailTemplateVariants = [
+      `Subject: Compensation Discussion – ${salaryJobRole} Application\n\nDear Hiring Team,\n\nThank you very much for extending the offer for the ${salaryJobRole} position at your company. I am genuinely excited about the role and confident in the value I can bring to your team.\n\nBefore finalizing the agreement, I would like to discuss the proposed compensation package. After conducting thorough market research for ${salaryJobRole} positions in ${salaryLocation} for candidates with ${salaryExperience} of experience, industry benchmarks indicate a market average between ${fmtAvg} and ${fmtMax}.\n\nKey value-justifications from my background supporting this tier include:\n` + valuePoints.map(vp => `• ${vp}`).join('\n') + `\n\nConsidering these qualifications, I would be grateful if we could adjust the base salary to ${fmtAvg}. I am confident this reflects the market rate for my skill set and look forward to concluding our agreement.\n\nSincerely,\n[Your Name]`,
+      `Subject: Offer Review & Compensation Alignment – ${salaryJobRole}\n\nDear Hiring Manager,\n\nThank you sincerely for extending the offer to join your team as a ${salaryJobRole}. I am thrilled about the prospect of bringing my skills in ${detectedSkillsCanonical.slice(0, 4).join(', ')} to your projects.\n\nUpon reviewing the offer details alongside current industry compensation metrics for ${salaryExperience} experience in ${salaryLocation}, total compensation for similar roles benchmarks between ${fmtAvg} and ${fmtMax}.\n\nMy background uniquely equips me to add immediate value:\n` + valuePoints.map(vp => `• ${vp}`).join('\n') + `\n\nWith these contributions in mind, could we explore bringing the base salary closer to ${fmtAvg}? I am eager to finalize our agreement and get started.\n\nWarm regards,\n[Your Name]`,
+      `Subject: Counter-Offer & Next Steps – ${salaryJobRole} Application\n\nDear Recruitment Team,\n\nI greatly appreciate the offer for the ${salaryJobRole} position. Your team's vision resonates deeply with me, and I am excited about the impact we can make together.\n\nI would like to discuss aligning the base compensation with current market expectations. Based on data for ${salaryJobRole} with ${salaryExperience} of background in ${salaryLocation}, median market pay is positioned around ${fmtAvg}, reaching up to ${fmtMax}.\n\nKey strengths I bring include:\n` + valuePoints.map(vp => `• ${vp}`).join('\n') + `\n\nIf you can adjust the base compensation to ${fmtAvg}, I would be delighted to accept immediately.\n\nRespectfully,\n[Your Name]`
+    ];
+
+    const chosenPhoneScript = phoneScriptVariants[Math.floor(Math.random() * phoneScriptVariants.length)];
+    const chosenEmailTemplate = emailTemplateVariants[Math.floor(Math.random() * emailTemplateVariants.length)];
 
     setSalaryResult({
       job_role: salaryJobRole,
@@ -1555,8 +1583,8 @@ Applicant / Candidate`;
       skill_premium_pct: Math.round(skillBonusPct * 100),
       detected_skills: detectedSkillsCanonical,
       value_justifications: valuePoints,
-      phone_script: phoneScript,
-      email_template: emailTemplate
+      phone_script: chosenPhoneScript,
+      email_template: chosenEmailTemplate
     });
 
     setTimeout(() => {
@@ -1663,6 +1691,181 @@ Applicant / Candidate`;
     }
   };
 
+  // LinkedIn AI Hub Handlers
+  const handleGenerateLinkedin = async (e) => {
+    e?.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+
+    let extractedText = `${formData.skills} ${formData.interests}`;
+
+    const bodyFormData = new FormData();
+    if (linkedinFile) {
+      bodyFormData.append('file', linkedinFile, linkedinFile.name);
+      try {
+        if (linkedinFile.name.endsWith('.txt')) {
+          extractedText = await linkedinFile.text();
+        }
+      } catch (fErr) {
+        console.warn('LinkedIn file text read warning:', fErr);
+      }
+    }
+
+    bodyFormData.append('target_role', linkedinTargetRole || 'Software Engineer');
+    bodyFormData.append('tone', linkedinTone || 'Professional & Catchy');
+    if (extractedText) {
+      bodyFormData.append('resume_text', extractedText);
+    }
+
+    try {
+      const res = await api.post('/api/analysis/linkedin-hub', bodyFormData);
+      if (res.data && res.data.about_summary) {
+        setLinkedinResult({ ...res.data });
+        setLoading(false);
+        setActiveView('linkedin-hub-output');
+        return;
+      }
+    } catch (err) {
+      console.warn('Backend LinkedIn Hub API notice:', err?.response?.data?.message || err.message);
+    }
+
+    // Client-side fallback if API offline
+    const fallbackSkills = extractSkillsFromText(extractedText);
+    const topSkillsStr = fallbackSkills.length > 0
+      ? fallbackSkills.slice(0, 5).map(s => formatSkillCanonical(s)).join(', ')
+      : 'Software Engineering, System Design, Data Structures';
+
+    const fallbackHeadline = `🚀 ${linkedinTargetRole || 'Software Engineer'} | Specializing in ${topSkillsStr} | Building Scalable High-Impact Systems`;
+    const fallbackSummary = `Welcome to my profile! As a dedicated ${linkedinTargetRole || 'Software Engineer'}, I specialize in ${topSkillsStr}.\n\nPassionate about system optimization, clean architecture, and delivering high-value solutions.\n\nLet's connect!\n\n#${(linkedinTargetRole || 'Tech').replace(/[^a-zA-Z]/g, '')} #CareerGrowth #Innovation #Networking`;
+
+    setLinkedinResult({
+      target_role: linkedinTargetRole || 'Software Engineer',
+      tone: linkedinTone || 'Professional & Catchy',
+      headline: fallbackHeadline,
+      about_summary: fallbackSummary,
+      hashtags: `#${(linkedinTargetRole || 'Tech').replace(/[^a-zA-Z]/g, '')} #CareerGrowth #Innovation #Networking`,
+      detected_skills: fallbackSkills.length > 0 ? fallbackSkills.slice(0, 6).map(s => formatSkillCanonical(s)) : ['Software Engineering', 'Problem Solving'],
+      key_highlights: [
+        `Specialized in ${topSkillsStr}`,
+        `Track record of clean code execution and resilient systems`,
+        `Passionate about continuous technical growth and collaboration`
+      ],
+      networking_messages: {
+        recruiter_note: `Hi! I came across your profile while exploring ${linkedinTargetRole || 'opportunities'}. With experience in ${topSkillsStr}, I'd love to connect!`,
+        recruiter_full: `Subject: Inquiring About ${linkedinTargetRole || 'Engineering'} Roles\n\nDear Recruiter,\n\nI hope you are well. I specialize in ${topSkillsStr} and would love to connect regarding potential opportunities on your team.\n\nBest regards,\n[Your Name]`,
+        hiring_manager_note: `Hi! I admire your engineering team's work. As a ${linkedinTargetRole || 'developer'} skilled in ${topSkillsStr}, I'd love to connect!`,
+        hiring_manager_full: `Subject: Connecting & Technical Inquiry\n\nDear Hiring Manager,\n\nI have been following your team's achievements and would love to connect to discuss technical synergies around ${topSkillsStr}.\n\nWarm regards,\n[Your Name]`,
+        peer_note: `Hi! Great connecting with fellow professionals in ${linkedinTargetRole || 'tech'}. Looking forward to following your work!`
+      }
+    });
+
+    setTimeout(() => {
+      setLoading(false);
+      setActiveView('linkedin-hub-output');
+    }, 400);
+  };
+
+  const handleRegenerateLinkedin = async (e) => {
+    e?.preventDefault();
+    setIsLinkedinRegenerating(true);
+
+    try {
+      let extractedText = `${formData.skills} ${formData.interests}`;
+      const bodyFormData = new FormData();
+      if (linkedinFile) {
+        bodyFormData.append('file', linkedinFile, linkedinFile.name);
+        try {
+          if (linkedinFile.name.endsWith('.txt')) {
+            extractedText = await linkedinFile.text();
+          }
+        } catch (fErr) {
+          console.warn('LinkedIn file text read warning:', fErr);
+        }
+      }
+
+      bodyFormData.append('target_role', linkedinTargetRole || 'Software Engineer');
+      bodyFormData.append('tone', linkedinTone || 'Professional & Catchy');
+      if (extractedText) {
+        bodyFormData.append('resume_text', extractedText);
+      }
+
+      const res = await api.post('/api/analysis/linkedin-hub', bodyFormData);
+      if (res.data && res.data.about_summary) {
+        setLinkedinResult({ ...res.data });
+        setIsLinkedinRegenerating(false);
+        return;
+      }
+    } catch (err) {
+      console.warn('Backend LinkedIn Hub API notice on regenerate:', err?.response?.data?.message || err.message);
+    }
+
+    // Client-side fallback if offline
+    await handleGenerateLinkedin(e);
+    setIsLinkedinRegenerating(false);
+  };
+
+  const handleCopyLinkedinText = (textToCopy) => {
+    navigator.clipboard.writeText(textToCopy || '');
+    setLinkedinCopySuccess(true);
+    setTimeout(() => setLinkedinCopySuccess(false), 2000);
+  };
+
+  const handleDownloadLinkedinPdf = () => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.setTextColor(30, 41, 59);
+      doc.text('LinkedIn Portfolio & Networking Hub Report', 20, 22);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Target Role: ${linkedinResult?.target_role || 'Software Engineer'} | Tone: ${linkedinResult?.tone}`, 20, 30);
+
+      doc.setDrawColor(226, 232, 240);
+      doc.line(20, 34, 190, 34);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      doc.text('RECOMMENDED LINKEDIN HEADLINE', 20, 44);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(37, 99, 235);
+      doc.text(linkedinResult?.headline || '', 20, 52);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      doc.text('LINKEDIN ABOUT SECTION SUMMARY', 20, 66);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(51, 65, 85);
+      const splitAbout = doc.splitTextToSize(linkedinResult?.about_summary || '', 165);
+      let curY = 74;
+      splitAbout.forEach((line) => {
+        if (curY > 275) {
+          doc.addPage();
+          curY = 20;
+        }
+        doc.text(line, 20, curY);
+        curY += 4.8;
+      });
+
+      doc.save(`${(linkedinResult?.target_role || 'LinkedIn').replace(/[^a-zA-Z0-9]/g, '_')}_Portfolio.pdf`);
+    } catch (err) {
+      console.error('LinkedIn PDF Error:', err);
+    }
+  };
+
   const handleOpenTool = (toolName) => {
     if (toolName === 'Career Path') {
       setActiveView('form');
@@ -1674,6 +1877,8 @@ Applicant / Candidate`;
       setActiveView('cover-letter-form');
     } else if (toolName === 'Salary Negotiator' || toolName === 'AI Salary Negotiator & Market Worth Predictor') {
       setActiveView('salary-negotiator-form');
+    } else if (toolName === 'LinkedIn AI Hub' || toolName === 'LinkedIn Hub' || toolName === 'Network & Summary') {
+      setActiveView('linkedin-hub-form');
     } else {
       setModalToolInfo({
         title: toolName,
@@ -1781,6 +1986,26 @@ Applicant / Candidate`;
                 className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-5 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 text-sm"
               >
                 <span>Generate Cover Letter</span>
+                <span>→</span>
+              </button>
+            </div>
+
+            {/* Card 6: LinkedIn AI Hub */}
+            <div className="bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-7 flex flex-col justify-between space-y-5">
+              <div className="space-y-3">
+                <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-100 shadow-sm">
+                  <LuShare2 className="w-7 h-7 text-indigo-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">LinkedIn AI Hub</h3>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Generate professional LinkedIn "About" bios, catchy headlines, and custom networking connection messages for recruiters.
+                </p>
+              </div>
+              <button
+                onClick={() => handleOpenTool('LinkedIn AI Hub')}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-5 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 text-sm"
+              >
+                <span>Open LinkedIn AI Hub</span>
                 <span>→</span>
               </button>
             </div>
@@ -2118,6 +2343,334 @@ Applicant / Candidate`;
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* LinkedIn AI Hub Input Form */}
+      {activeView === 'linkedin-hub-form' && (
+        <div className="max-w-3xl mx-auto space-y-6">
+          <button
+            onClick={() => setActiveView('dashboard')}
+            className="text-xs font-semibold text-gray-600 hover:text-indigo-600 flex items-center gap-1.5 transition-colors"
+          >
+            <span>← Back to Dashboard</span>
+          </button>
+
+          <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-6">
+            <div>
+              <div className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-2">
+                🌐 LinkedIn AI Hub &amp; Networking Generator
+              </div>
+              <h2 className="text-2xl font-black text-gray-900">Craft Your LinkedIn Portfolio &amp; Outreach Notes</h2>
+              <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                Upload your resume, enter your target role, and select a tone to automatically generate a catchy LinkedIn "About" summary, custom hashtags, and recruiter connection messages.
+              </p>
+            </div>
+
+            <form onSubmit={handleGenerateLinkedin} className="space-y-6">
+              {/* Field 1: Upload Resume File */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  1. Upload Resume File (.pdf, .docx, .txt) <span className="text-gray-400 font-normal">(Optional, or uses profile skills)</span>
+                </label>
+                <div className="border-2 border-dashed border-gray-300 hover:border-indigo-400 bg-gray-50/50 rounded-2xl p-6 text-center cursor-pointer transition-all">
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.txt"
+                    onChange={(e) => setLinkedinFile(e.target.files?.[0] || null)}
+                    className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700"
+                  />
+                  {linkedinFile && (
+                    <p className="text-xs font-bold text-indigo-600 mt-2">
+                      ✓ Resume File Selected: {linkedinFile.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Field 2: Target Job Role */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  2. Target Job Role <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={linkedinTargetRole}
+                  onChange={(e) => setLinkedinTargetRole(e.target.value)}
+                  placeholder="e.g. AI/ML Engineer / Senior Full Stack Developer"
+                  className="w-full text-xs p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              {/* Field 3: Bio & Outreach Tone */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  3. Portfolio &amp; Outreach Tone <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={linkedinTone}
+                  onChange={(e) => setLinkedinTone(e.target.value)}
+                  className="w-full text-xs font-semibold text-gray-800 bg-white border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                >
+                  <option value="Professional & Catchy">Professional &amp; Catchy (Balanced, Engaging)</option>
+                  <option value="Bold & Executive">Bold &amp; Executive (Leadership, High Impact)</option>
+                  <option value="Enthusiastic & Passionate">Enthusiastic &amp; Passionate (High Energy, Creative)</option>
+                  <option value="Technical & Metrics-Driven">Technical &amp; Metrics-Driven (Architecture, Scale)</option>
+                </select>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-6 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <span className="animate-spin text-base">⏳</span>
+                    <span>Extracting Resume Key Points &amp; Synthesizing LinkedIn Bio...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🚀 Generate LinkedIn Portfolio &amp; Connection Messages</span>
+                    <span>→</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* LinkedIn AI Hub Output View */}
+      {activeView === 'linkedin-hub-output' && linkedinResult && (
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setActiveView('linkedin-hub-form')}
+              className="text-xs font-semibold text-gray-600 hover:text-indigo-600 flex items-center gap-1.5 transition-colors"
+            >
+              <span>← Re-configure LinkedIn Parameters</span>
+            </button>
+            <button
+              onClick={() => setActiveView('dashboard')}
+              className="text-xs font-semibold text-blue-600 hover:underline"
+            >
+              Dashboard 🏠
+            </button>
+          </div>
+
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-indigo-900 via-slate-900 to-blue-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span className="bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                  🌐 LinkedIn AI Hub &amp; Network Intelligence
+                </span>
+                <h1 className="text-2xl sm:text-3xl font-black mt-2">
+                  {linkedinResult.target_role}
+                </h1>
+                <p className="text-xs sm:text-sm text-indigo-100/80 mt-1">
+                  Selected Tone: <strong>{linkedinResult.tone}</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* Recommended Headline Box */}
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-4 rounded-2xl space-y-1">
+              <span className="text-[10px] uppercase font-bold text-indigo-200 tracking-wider">Recommended LinkedIn Headline</span>
+              <p className="text-sm font-bold text-white">{linkedinResult.headline}</p>
+            </div>
+
+            {linkedinResult.detected_skills?.length > 0 && (
+              <div className="pt-2 border-t border-white/10 space-y-1">
+                <span className="text-[11px] font-medium text-indigo-200/80">Key skills highlighted from resume:</span>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {linkedinResult.detected_skills.map((s) => (
+                    <span key={s} className="bg-indigo-500/30 text-indigo-100 border border-indigo-400/30 text-[11px] font-medium px-2.5 py-0.5 rounded-md">
+                      ✓ {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Tab Navigation: About Summary vs Networking Messages */}
+          <div className="flex items-center gap-3 border-b border-gray-200 pb-2">
+            <button
+              onClick={() => setLinkedinTab('summary')}
+              className={`px-5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 ${
+                linkedinTab === 'summary'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-white text-gray-600 hover:text-gray-900 border border-gray-200'
+              }`}
+            >
+              <span>📝 LinkedIn "About" Summary</span>
+            </button>
+            <button
+              onClick={() => setLinkedinTab('networking')}
+              className={`px-5 py-2.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 ${
+                linkedinTab === 'networking'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-white text-gray-600 hover:text-gray-900 border border-gray-200'
+              }`}
+            >
+              <span>💬 Recruiter &amp; Peer Connection Notes</span>
+            </button>
+          </div>
+
+          {/* Section 1: LinkedIn About Summary View */}
+          {linkedinTab === 'summary' && (
+            <div className="bg-white rounded-3xl border border-gray-200 shadow-xl p-6 sm:p-8 space-y-6">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <div>
+                  <h3 className="text-xl font-black text-gray-900">📝 LinkedIn "About" Section Summary</h3>
+                  <p className="text-xs text-gray-500">Copy &amp; paste directly into your LinkedIn profile summary box</p>
+                </div>
+                <span className="text-xs font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full">
+                  Hashtags Included
+                </span>
+              </div>
+
+              {/* Summary Text Box */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 relative">
+                <pre className="whitespace-pre-wrap font-sans text-xs sm:text-sm text-slate-800 leading-relaxed font-normal">
+                  {linkedinResult.about_summary}
+                </pre>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleCopyLinkedinText(linkedinResult.about_summary)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 text-xs shadow-sm transition-all"
+                  >
+                    <span>{linkedinCopySuccess ? '✓ Copied Summary!' : '📋 Copy About Summary'}</span>
+                  </button>
+
+                  <button
+                    onClick={handleDownloadLinkedinPdf}
+                    className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 text-xs shadow-sm transition-all"
+                  >
+                    <span>📥 Download PDF</span>
+                  </button>
+                </div>
+
+                <button
+                  onClick={handleRegenerateLinkedin}
+                  disabled={isLinkedinRegenerating || loading}
+                  className="bg-indigo-900 hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 text-xs shadow-sm transition-all disabled:opacity-50"
+                >
+                  {isLinkedinRegenerating ? (
+                    <>
+                      <span className="animate-spin text-sm">🔄</span>
+                      <span>Synthesizing Fresh Bio...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🔄 Regenerate Bio</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Section 2: Networking & Connection Messages View */}
+          {linkedinTab === 'networking' && (
+            <div className="bg-white rounded-3xl border border-gray-200 shadow-xl p-6 sm:p-8 space-y-6">
+              <div className="space-y-1 border-b border-gray-100 pb-4">
+                <h3 className="text-xl font-black text-gray-900">💬 Custom LinkedIn Connection &amp; Outreach Notes</h3>
+                <p className="text-xs text-gray-500">Tailored templates formatted specifically for LinkedIn connection notes (&lt;300 chars) and recruiter emails</p>
+              </div>
+
+              {/* Subtabs for Networking Note Types */}
+              <div className="flex flex-wrap items-center gap-2 bg-gray-100 p-1.5 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setNetworkSubTab('recruiter_note')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    networkSubTab === 'recruiter_note' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  👔 Recruiter Note (&lt;300 chars)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNetworkSubTab('recruiter_full')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    networkSubTab === 'recruiter_full' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  ✉️ Recruiter InMail / Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNetworkSubTab('hiring_manager_note')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    networkSubTab === 'hiring_manager_note' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  🎯 Hiring Manager Note
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNetworkSubTab('hiring_manager_full')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    networkSubTab === 'hiring_manager_full' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  📩 Hiring Manager Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNetworkSubTab('peer_note')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    networkSubTab === 'peer_note' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  🤝 Peer Networking Note
+                </button>
+              </div>
+
+              {/* Message Display Container */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 relative">
+                <pre className="whitespace-pre-wrap font-sans text-xs sm:text-sm text-slate-800 leading-relaxed font-normal">
+                  {linkedinResult.networking_messages?.[networkSubTab]}
+                </pre>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100">
+                <button
+                  onClick={() => handleCopyLinkedinText(linkedinResult.networking_messages?.[networkSubTab])}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 text-xs shadow-sm transition-all"
+                >
+                  <span>{linkedinCopySuccess ? '✓ Copied Message!' : '📋 Copy Connection Message'}</span>
+                </button>
+
+                <button
+                  onClick={handleRegenerateLinkedin}
+                  disabled={isLinkedinRegenerating || loading}
+                  className="bg-indigo-900 hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 text-xs shadow-sm transition-all disabled:opacity-50"
+                >
+                  {isLinkedinRegenerating ? (
+                    <>
+                      <span className="animate-spin text-sm">🔄</span>
+                      <span>Generating Message...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🔄 Regenerate Message</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

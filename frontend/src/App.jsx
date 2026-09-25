@@ -84,6 +84,14 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/linkedin-hub"
+                element={
+                  <ProtectedRoute>
+                    <CareerToolsPage initialView="linkedin-hub-form" />
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </main>
         </div>

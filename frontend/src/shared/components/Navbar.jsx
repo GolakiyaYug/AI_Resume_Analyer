@@ -9,7 +9,8 @@ import {
   LuUser,
   LuFolder,
   LuLogOut,
-  LuDollarSign
+  LuDollarSign,
+  LuShare2
 } from 'react-icons/lu';
 
 const Navbar = () => {
@@ -88,6 +89,13 @@ const Navbar = () => {
               <LuDollarSign className="w-4 h-4 text-teal-600" />
               <span>Salary Negotiator</span>
             </Link>
+            <Link
+              to="/linkedin-hub"
+              className="text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+            >
+              <LuShare2 className="w-4 h-4 text-indigo-600" />
+              <span>LinkedIn AI Hub</span>
+            </Link>
 
             {isAuthenticated ? (
               <>
@@ -125,6 +133,14 @@ const Navbar = () => {
                         <span>Profile</span>
                       </Link>
                       <Link
+                        to="/linkedin-hub"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors font-medium"
+                      >
+                        <LuShare2 className="w-4 h-4 text-indigo-600" />
+                        <span>LinkedIn AI Hub</span>
+                      </Link>
+                      <Link
                         to="/salary-negotiator"
                         onClick={() => setDropdownOpen(false)}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-teal-50 hover:text-teal-600 transition-colors font-medium"
@@ -140,6 +156,7 @@ const Navbar = () => {
                         <LuFolder className="w-4 h-4 text-blue-600" />
                         <span>My Resumes</span>
                       </Link>
+
                       <button
                         id="logout-btn"
                         onClick={handleLogout}
