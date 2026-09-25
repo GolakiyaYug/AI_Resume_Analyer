@@ -15,9 +15,11 @@ const GLOBAL_SKILLS_LIST = [
   'python', 'java', 'javascript', 'typescript', 'react', 'vue', 'angular', 'node', 'express', 'next.js',
   'html', 'css', 'tailwind', 'bootstrap', 'sql', 'postgresql', 'mysql', 'mongodb', 'redis', 'sqlite',
   'numpy', 'pandas', 'scikit-learn', 'pytorch', 'tensorflow', 'keras', 'deep learning', 'machine learning',
-  'nlp', 'opencv', 'data analysis', 'power bi', 'tableau', 'excel', 'statistics', 'flask', 'django', 'fastapi',
+  'nlp', 'xgboost', 'lightgbm', 'catboost', 'huggingface', 'transformers', 'llm', 'langchain', 'rag', 'spacy', 'nltk', 'opencv', 'data analysis', 'power bi', 'tableau', 'excel', 'statistics', 'flask', 'django', 'fastapi',
   'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'terraform', 'git', 'c++', 'c#', 'go', 'rust', 'swift', 'kotlin',
   'figma', 'ui/ux', 'ux', 'ui', 'photoshop', 'illustrator', 'wireframing', 'user research', 'design systems',
+  'solidworks', 'ansys', 'autocad', 'catia', 'revit', 'matlab', 'simulink', 'creo', 'inventor', 'fusion 360', 'labview', 'plc', 'scada', 'abaqus', 'cad', 'cam', 'fea', 'cfd',
+  'sap fico', 'sap', 'quickbooks', 'tally', 'financial modeling', 'auditing', 'taxation', 'accounting', 'financial analysis', 'risk management', 'compliance',
   'communication', 'leadership', 'problem solving',
   'ci/cd', 'apache spark', 'spark', 'etl', 'airflow', 'big data', 'rest api', 'databases'
 ];
@@ -34,6 +36,16 @@ const CANONICAL_SKILL_NAMES = {
   'deep learning': 'Deep Learning',
   'machine learning': 'Machine Learning',
   'nlp': 'NLP & LLMs',
+  'xgboost': 'XGBoost',
+  'lightgbm': 'LightGBM',
+  'catboost': 'CatBoost',
+  'huggingface': 'HuggingFace',
+  'transformers': 'Transformers',
+  'llm': 'LLMs & Fine-Tuning',
+  'langchain': 'LangChain',
+  'rag': 'RAG System',
+  'spacy': 'spaCy',
+  'nltk': 'NLTK',
   'opencv': 'OpenCV',
   'data analysis': 'Data Analysis',
   'power bi': 'Power BI',
@@ -83,6 +95,35 @@ const CANONICAL_SKILL_NAMES = {
   'wireframing': 'Wireframing & Prototyping',
   'user research': 'User Research',
   'design systems': 'Design Systems',
+  'solidworks': 'SolidWorks 3D CAD',
+  'ansys': 'ANSYS FEA/CFD',
+  'autocad': 'AutoCAD 2D/3D',
+  'catia': 'CATIA Surface Design',
+  'revit': 'Autodesk Revit',
+  'matlab': 'MATLAB & Simulink',
+  'simulink': 'Simulink Simulation',
+  'creo': 'PTC Creo',
+  'inventor': 'Autodesk Inventor',
+  'fusion 360': 'Fusion 360',
+  'labview': 'NI LabVIEW',
+  'plc': 'PLC Programming',
+  'scada': 'SCADA Systems',
+  'abaqus': 'Abaqus FEA',
+  'cad': 'CAD Modeling',
+  'cam': 'CAM Manufacturing',
+  'fea': 'Finite Element Analysis (FEA)',
+  'cfd': 'Computational Fluid Dynamics (CFD)',
+  'sap fico': 'SAP FICO',
+  'sap': 'SAP ERP',
+  'quickbooks': 'QuickBooks',
+  'tally': 'Tally ERP',
+  'financial modeling': 'Financial Modeling',
+  'auditing': 'Internal Auditing',
+  'taxation': 'Taxation & Filing',
+  'accounting': 'Financial Accounting',
+  'financial analysis': 'Financial Analysis',
+  'risk management': 'Risk Management',
+  'compliance': 'Regulatory Compliance',
   'communication': 'Communication',
   'leadership': 'Leadership',
   'problem solving': 'Problem Solving',
@@ -96,11 +137,17 @@ const CANONICAL_SKILL_NAMES = {
   'databases': 'Databases'
 };
 
-// Irrelevant noise words filter
+// Irrelevant noise words & human names filter
 const NOISE_WORDS = new Set([
   'education', 'experience', 'resume', 'summary', 'project', 'projects', 'details', 'contact',
   'email', 'phone', 'address', 'name', 'profile', 'work', 'history', 'school', 'university',
-  'degree', 'bachelor', 'master', 'skills', 'skill', 'tools', 'languages', 'overview'
+  'degree', 'bachelor', 'master', 'skills', 'skill', 'tools', 'languages', 'overview',
+  'rohit', 'verma', 'sharma', 'kumar', 'singh', 'gupta', 'patel', 'shah', 'rao', 'reddy', 'nair',
+  'joshi', 'kulkarni', 'deshmukh', 'mehta', 'jain', 'agarwal', 'bhat', 'khan', 'ali', 'ahmed',
+  'john', 'smith', 'david', 'michael', 'alex', 'james', 'robert', 'william', 'mary', 'patricia',
+  'jennifer', 'linda', 'elizabeth', 'barbara', 'susan', 'jessica', 'sarah', 'karen', 'nancy',
+  'yash', 'rahul', 'amit', 'priya', 'anita', 'pooja', 'sunil', 'anil', 'vikram', 'sanjay',
+  'vijay', 'rajesh', 'ramesh', 'suresh', 'deepak', 'manish', 'alok', 'neha', 'swati', 'rashi'
 ]);
 
 // Role Progressive Roadmap Definitions
@@ -496,7 +543,7 @@ const CareerToolsPage = ({ initialView = 'dashboard' }) => {
       const escaped = skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`(?:^|[^a-z0-9#+])(${escaped})(?:$|[^a-z0-9#+])`, 'i');
 
-      if (regex.test(lowerText) || lowerText.includes(skill)) {
+      if (regex.test(lowerText)) {
         found.push(skill.toLowerCase());
       }
     });
@@ -735,161 +782,359 @@ const CareerToolsPage = ({ initialView = 'dashboard' }) => {
     }, 400);
   };
 
-  // Handle AI Interview Preparation Submission with STRICT RESUME SKILL PARSING & DOMAIN QUESTION ALIGNMENT
+  // Handle AI Interview Preparation Submission with STRICT RESUME SKILL PARSING & BACKEND API ALIGNMENT
   const handleGenerateInterviewQuestions = async (e) => {
     e?.preventDefault();
     setLoading(true);
+    setGeneratedInterviewData(null); // Clear previous session state completely
 
-    let extractedSkillsRaw = [];
+    if (!interviewFile && !interviewJd.trim()) {
+      alert("Please upload a resume file (.pdf, .docx, .txt) to generate interview questions.");
+      setLoading(false);
+      return;
+    }
 
-    // 1. Strictly extract skills from the uploaded interview resume file
-    if (interviewFile) {
-      try {
-        const textFromFileName = extractSkillsFromText(interviewFile.name);
-        extractedSkillsRaw.push(...textFromFileName);
-
-        if (interviewFile.name.endsWith('.txt')) {
-          const textContent = await interviewFile.text();
-          const textSkills = extractSkillsFromText(textContent);
-          extractedSkillsRaw.push(...textSkills);
-        }
-
-        const bodyFormData = new FormData();
+    try {
+      const bodyFormData = new FormData();
+      if (interviewFile) {
         bodyFormData.append('file', interviewFile, interviewFile.name);
-        if (interviewJd.trim()) {
-          bodyFormData.append('job_description', interviewJd.trim());
-        }
-
-        const res = await api.post('/api/analysis/analyze', bodyFormData);
-        if (res.data?.analysis?.report_data?.skills_found) {
-          const backendSkills = res.data.analysis.report_data.skills_found.map(s => s.toLowerCase());
-          extractedSkillsRaw.push(...backendSkills);
-        }
-      } catch (err) {
-        console.warn('Interview parse notice:', err?.response?.data?.message || err.message);
       }
-    } else {
-      // Fallback: extract from manual skills form
-      extractedSkillsRaw = extractSkillsFromText(formData.skills);
+      if (interviewJd.trim()) {
+        bodyFormData.append('job_description', interviewJd.trim());
+      }
+      bodyFormData.append('interview_type', interviewType);
+      bodyFormData.append('difficulty', interviewDifficulty);
+      bodyFormData.append('question_count', questionCount);
+
+      const res = await api.post('/api/analysis/interview-prep/generate', bodyFormData, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+
+      if (res.data && res.data.technicalQuestions) {
+        setGeneratedInterviewData({
+          type: res.data.type || interviewType,
+          difficulty: res.data.difficulty || interviewDifficulty,
+          questionCount: res.data.questionCount || questionCount,
+          detectedSkills: res.data.detectedSkills || [],
+          technicalQuestions: res.data.technicalQuestions || [],
+          hrQuestions: res.data.hrQuestions || []
+        });
+
+        setExpandedAnswers({});
+        setLoading(false);
+        setActiveView('interview-prep-output');
+        return;
+      }
+    } catch (err) {
+      console.warn('Backend interview prep API notice:', err?.response?.data?.message || err.message);
     }
 
-    // Clean unique extracted lowercased skills
+    // Client-side Fallback
+    let extractedSkillsRaw = [];
+    if (interviewFile) {
+      const textFromFileName = extractSkillsFromText(interviewFile.name);
+      extractedSkillsRaw.push(...textFromFileName);
+      if (interviewFile.name.endsWith('.txt')) {
+        try {
+          const textContent = await interviewFile.text();
+          extractedSkillsRaw.push(...extractSkillsFromText(textContent));
+        } catch (_) {}
+      }
+    } else if (interviewJd.trim()) {
+      extractedSkillsRaw = extractSkillsFromText(interviewJd);
+    }
+
     const extractedSkillsLower = Array.from(new Set(extractedSkillsRaw.map(s => s.toLowerCase())));
-    const detectedSkillsCanonical = extractedSkillsLower.length > 0
-      ? extractedSkillsLower.map(s => formatSkillCanonical(s))
-      : ['General Software Engineering'];
+    const detectedSkillsCanonical = extractedSkillsLower.map(s => formatSkillCanonical(s));
 
-    // 2. Build Domain-Tailored Technical Interview Questions based on GENUINE extracted skills
-    const technicalQuestionsPool = [];
+    const candidateTechPool = [];
 
-    // Check for UI/UX & Design Skills
-    const hasDesignSkill = extractedSkillsLower.some(s => ['figma', 'ui/ux', 'ux', 'ui', 'photoshop', 'illustrator', 'wireframing', 'user research', 'design systems'].includes(s));
-    if (hasDesignSkill) {
-      technicalQuestionsPool.push(
-        {
-          id: 'design_1',
-          category: 'Technical',
-          domain: 'UI/UX Design Systems & Figma',
-          question: 'Can you walk through your process in Figma for creating scalable component libraries, auto-layout constraints, and design systems for web and mobile?',
-          resumeBadge: 'Tailored from resume skill: Figma / Design Systems',
-          sampleAnswer: 'I start by establishing global design tokens for typography, color palettes, and spacing variables in Figma. I build atomic components using auto-layout, component variants, and interactive properties to ensure seamless handoff to development teams.'
-        },
-        {
-          id: 'design_2',
-          category: 'Technical',
-          domain: 'User Research & Usability Testing',
-          question: 'How do you plan and conduct User Research and usability testing to validate wireframes before finalizing high-fidelity prototypes?',
-          resumeBadge: 'Tailored from resume skill: User Research & Wireframing',
-          sampleAnswer: 'I define target user personas and task scenarios, then conduct moderated usability testing with interactive Figma prototypes. I track task completion speed and user friction points, iterating on wireframes based on qualitative user feedback.'
-        },
-        {
-          id: 'design_3',
-          category: 'Technical',
-          domain: 'User Interface & Wireframing',
-          question: 'How do you translate complex product requirements into intuitive low-fidelity wireframes and high-fidelity UI prototypes?',
-          resumeBadge: 'Tailored from resume skill: Wireframing & UI Design',
-          sampleAnswer: 'I map out user flows and information architecture first, sketching low-fidelity wireframes to iterate on layout hierarchy with product managers. Once approved, I elevate them to high-fidelity UI screens adhering to accessibility guidelines.'
-        }
-      );
+    // Core Engineering Pools
+    if (extractedSkillsLower.some(s => ['solidworks'].includes(s))) {
+      candidateTechPool.push({
+        id: 'sw_1',
+        category: 'Technical',
+        domain: 'SolidWorks 3D CAD & Mechanical Design',
+        question: 'How do you design complex 3D parametric parts, weldments, and large assemblies in SolidWorks using proper geometric constraints, equations, and MBD annotations?',
+        resumeBadge: 'Tailored from resume skill: SolidWorks',
+        sampleAnswer: 'I build parametric sketches with fully defined relations, utilize top-down assembly modeling to prevent interferences, and apply MBD annotations for manufacturing handoff.'
+      });
     }
 
-    // Check for Web & Frontend Skills (HTML, CSS, JS, React)
-    const hasFrontendSkill = extractedSkillsLower.some(s => ['html', 'css', 'javascript', 'typescript', 'react', 'tailwind', 'bootstrap'].includes(s));
-    if (hasFrontendSkill) {
-      technicalQuestionsPool.push(
-        {
-          id: 'web_1',
-          category: 'Technical',
-          domain: 'HTML5 / CSS3 & Accessibility',
-          question: 'How do you ensure semantic HTML5 markup, WCAG accessibility compliance, and responsive CSS layouts across modern browsers?',
-          resumeBadge: 'Tailored from resume skill: HTML5 / CSS3',
-          sampleAnswer: 'I use semantic elements (<main>, <article>, <nav>), ARIA landmark attributes, proper contrast ratios, and focus states for keyboard navigation. For layouts, I combine CSS Grid and Flexbox with mobile-first media queries.'
-        },
-        {
-          id: 'web_2',
-          category: 'Technical',
-          domain: 'Frontend Architecture & React',
-          question: 'How do you manage component state and side effects in React applications using custom hooks and state management libraries?',
-          resumeBadge: 'Tailored from resume skill: React.js',
-          sampleAnswer: 'I keep transient UI state localized with useState, isolate async data fetching in useEffect with clean cleanup functions, and manage global application state using React Context or Redux/Zustand to prevent prop drilling.'
-        }
-      );
+    if (extractedSkillsLower.some(s => ['ansys', 'fea', 'cfd'].includes(s))) {
+      candidateTechPool.push({
+        id: 'ansys_1',
+        category: 'Technical',
+        domain: 'ANSYS FEA & Structural Simulation',
+        question: 'How do you set up Finite Element Analysis (FEA) models in ANSYS Mechanical, defining boundary conditions, meshing refinement, and contact formulations?',
+        resumeBadge: 'Tailored from resume skill: ANSYS',
+        sampleAnswer: 'I import CAD geometry, apply mesh convergence studies using hex/tetrahedral elements, define non-linear contact behavior (bonded/frictional), and solve for Von Mises stress and safety factors.'
+      });
     }
 
-    // Check for Data / AI Skills (Python, Pandas, ML, PyTorch, SQL)
-    const hasDataAiSkill = extractedSkillsLower.some(s => ['python', 'pandas', 'numpy', 'scikit-learn', 'pytorch', 'tensorflow', 'machine learning', 'deep learning', 'nlp', 'sql'].includes(s));
-    if (hasDataAiSkill) {
-      technicalQuestionsPool.push(
-        {
-          id: 'ai_1',
-          category: 'Technical',
-          domain: 'Python Data Processing',
-          question: 'How do you use Python, Pandas, and NumPy for data cleaning, vectorization, and handling missing values in production datasets?',
-          resumeBadge: 'Tailored from resume skill: Python / Pandas',
-          sampleAnswer: 'I replace scalar loop operations with vectorized Pandas dataframe transformations, impute missing values using domain-appropriate logic, and downcast numerical data types to optimize memory usage.'
-        },
-        {
-          id: 'ai_2',
-          category: 'Technical',
-          domain: 'Machine Learning Modeling',
-          question: 'Describe your methodology for feature engineering, model selection, and hyperparameter tuning using Scikit-Learn or PyTorch.',
-          resumeBadge: 'Tailored from resume skill: Machine Learning / PyTorch',
-          sampleAnswer: 'I perform exploratory data analysis, scale numerical features, and use stratified K-fold cross-validation with Optuna or GridSearch to optimize hyperparameters while preventing data leakage.'
-        }
-      );
+    if (extractedSkillsLower.some(s => ['autocad', 'cad'].includes(s))) {
+      candidateTechPool.push({
+        id: 'acad_1',
+        category: 'Technical',
+        domain: 'AutoCAD 2D/3D Drafting & Standards',
+        question: 'How do you structure layer standards, dynamic blocks, external references (Xrefs), and sheet sets in AutoCAD for architectural or mechanical drafting?',
+        resumeBadge: 'Tailored from resume skill: AutoCAD',
+        sampleAnswer: 'I enforce standardized AIA/ISO layer conventions, create dynamic blocks with visibility states, link Xrefs for collaborative drafting, and publish multi-sheet plotting layouts.'
+      });
     }
 
-    // Generic Technical Fallback if non-matched
-    if (technicalQuestionsPool.length === 0) {
-      technicalQuestionsPool.push(
-        {
-          id: 'gen_1',
-          category: 'Technical',
-          domain: 'Problem Solving & System Logic',
-          question: 'Walk through your technical workflow when tackling an unfamiliar technical task or learning a new domain tool.',
-          resumeBadge: 'Problem Solving & Adaptability',
-          sampleAnswer: 'I review official documentation, build a minimal proof-of-concept prototype, test edge cases, and integrate the solution incrementally into the main codebase with automated tests.'
-        },
-        {
-          id: 'gen_2',
-          category: 'Technical',
-          domain: 'Code Quality & Git Version Control',
-          question: 'What version control and code review practices do you follow to ensure high code quality across team projects?',
-          resumeBadge: 'Git & Engineering Best Practices',
-          sampleAnswer: 'I follow feature branch workflows, write atomic commit messages, create descriptive PR pull requests, and enforce automated CI pipeline checks before merging into main.'
-        }
-      );
+    if (extractedSkillsLower.some(s => ['matlab', 'simulink'].includes(s))) {
+      candidateTechPool.push({
+        id: 'mat_1',
+        category: 'Technical',
+        domain: 'MATLAB & Control System Modeling',
+        question: 'How do you model control systems, signal processing algorithms, and dynamic system simulations using MATLAB and Simulink?',
+        resumeBadge: 'Tailored from resume skill: MATLAB',
+        sampleAnswer: 'I derive system transfer functions, analyze stability using Bode plots and Root Locus in MATLAB, and build block diagram feedback loops in Simulink.'
+      });
     }
 
-    // HR & Behavioral Questions Pool
+    // Financial & Accounting Pools
+    if (extractedSkillsLower.some(s => ['sap fico', 'sap'].includes(s))) {
+      candidateTechPool.push({
+        id: 'sap_1',
+        category: 'Technical',
+        domain: 'SAP FICO & Enterprise Resource Planning',
+        question: 'How do you configure and manage General Ledger (G/L), Accounts Payable (A/P), and Accounts Receivable (A/R) modules in SAP FICO to ensure seamless financial closing?',
+        resumeBadge: 'Tailored from resume skill: SAP FICO',
+        sampleAnswer: 'I configure G/L master records, document types, and posting keys while executing automated month-end clearing and bank reconciliation workflows in SAP FICO.'
+      });
+    }
+
+    if (extractedSkillsLower.some(s => ['quickbooks'].includes(s))) {
+      candidateTechPool.push({
+        id: 'qb_1',
+        category: 'Technical',
+        domain: 'QuickBooks & Bookkeeping Automation',
+        question: 'How do you structure the Chart of Accounts, reconcile bank feeds, and automate recurring invoices in QuickBooks to maintain accurate real-time cash flow visibility?',
+        resumeBadge: 'Tailored from resume skill: QuickBooks',
+        sampleAnswer: 'I organize account hierarchies, map bank feeds using automated rules, and execute monthly bank and credit card reconciliations in QuickBooks.'
+      });
+    }
+
+    if (extractedSkillsLower.some(s => ['tally', 'tally erp 9', 'tally prime'].includes(s))) {
+      candidateTechPool.push({
+        id: 'tally_1',
+        category: 'Technical',
+        domain: 'Tally ERP 9 / TallyPrime Accounting',
+        question: 'How do you manage GST/VAT compliance, voucher entry, and inventory batch tracking in Tally ERP 9 / TallyPrime?',
+        resumeBadge: 'Tailored from resume skill: Tally',
+        sampleAnswer: 'I maintain ledger masters, configure GST tax rates, record sales/purchase vouchers, and generate GSTR returns directly from Tally.'
+      });
+    }
+
+    if (extractedSkillsLower.some(s => ['excel', 'ms excel'].includes(s))) {
+      candidateTechPool.push({
+        id: 'xl_1',
+        category: 'Technical',
+        domain: 'Advanced Excel & Financial Automation',
+        question: 'How do you leverage advanced Excel functions (INDEX/MATCH, XLOOKUP, Dynamic Arrays, Power Query) to consolidate multi-entity financial data pipelines?',
+        resumeBadge: 'Tailored from resume skill: Advanced Excel',
+        sampleAnswer: 'I build dynamic data models using XLOOKUP and Power Query ETL queries, eliminating manual copy-pasting and establishing automated refreshable reporting workbooks.'
+      });
+    }
+
+    if (extractedSkillsLower.some(s => ['financial modeling', 'valuation'].includes(s))) {
+      candidateTechPool.push({
+        id: 'fm_1',
+        category: 'Technical',
+        domain: 'Financial Modeling & Valuation',
+        question: 'Walk through how you construct an integrated 3-Statement Financial Model (Income Statement, Balance Sheet, Cash Flow) from raw historical trial balances.',
+        resumeBadge: 'Tailored from resume skill: Financial Modeling',
+        sampleAnswer: 'I project revenue and expense drivers on the Income Statement, build supporting working capital and debt schedules, link net income to Cash Flow, and balance the Balance Sheet.'
+      });
+    }
+
+    if (extractedSkillsLower.some(s => ['auditing', 'internal audit', 'external audit'].includes(s))) {
+      candidateTechPool.push({
+        id: 'audit_1',
+        category: 'Technical',
+        domain: 'Internal & External Auditing',
+        question: 'Describe your methodology for developing an internal audit plan, testing key internal controls (SOX compliance), and documenting audit working papers.',
+        resumeBadge: 'Tailored from resume skill: Auditing',
+        sampleAnswer: 'I conduct risk assessments to identify high-risk financial processes, perform walkthroughs and sample testing of key controls, and log audit findings in working papers.'
+      });
+    }
+
+    if (extractedSkillsLower.some(s => ['accounting', 'gaap', 'ifrs'].includes(s))) {
+      candidateTechPool.push({
+        id: 'acct_1',
+        category: 'Technical',
+        domain: 'Financial Accounting & GAAP/IFRS Standards',
+        question: 'Explain how you apply GAAP/IFRS revenue recognition standards (ASC 606 / IFRS 15) to complex customer contracts and multi-element deliverables.',
+        resumeBadge: 'Tailored from resume skill: Accounting',
+        sampleAnswer: 'I identify performance obligations in customer contracts, allocate transaction prices based on standalone selling prices, and recognize revenue as obligations are satisfied.'
+      });
+    }
+
+    // 1. Python Data Processing
+    if (extractedSkillsLower.some(s => ['python', 'pandas', 'numpy'].includes(s))) {
+      candidateTechPool.push({
+        id: 'py_pandas',
+        category: 'Technical',
+        domain: 'Python Data Processing & Vectorization',
+        question: 'How do you optimize data processing pipelines in Python using Pandas and NumPy to replace slow scalar loops with vectorized operations?',
+        resumeBadge: 'Tailored from resume skill: Python',
+        sampleAnswer: 'I replace scalar loop operations with vectorized Pandas dataframe transformations, downcast numerical data types, and use NumPy array broadcasting to optimize CPU execution.'
+      });
+      candidateTechPool.push({
+        id: 'py_gil',
+        category: 'Technical',
+        domain: 'Python Concurrency & Memory Management',
+        question: 'How does the Python Global Interpreter Lock (GIL) impact CPU-bound multi-threaded tasks, and when should you use multiprocessing or asyncio instead?',
+        resumeBadge: 'Tailored from resume skill: Python',
+        sampleAnswer: 'The GIL prevents parallel CPython execution on multi-core CPUs. For CPU-bound workloads, I use Python multiprocessing or process pools. For I/O-bound tasks, I use asyncio or threading.'
+      });
+    }
+
+    // 2. XGBoost & Machine Learning
+    if (extractedSkillsLower.some(s => ['xgboost', 'scikit-learn', 'machine learning', 'lightgbm', 'catboost'].includes(s))) {
+      candidateTechPool.push({
+        id: 'ai_xgb',
+        category: 'Technical',
+        domain: 'XGBoost & Gradient Boosting',
+        question: 'How do you handle class imbalance and prevent overfitting when training XGBoost models? Which parameters (e.g., scale_pos_weight, max_depth, subsample, learning_rate, reg_alpha, reg_lambda) do you tune?',
+        resumeBadge: 'Tailored from resume skill: XGBoost',
+        sampleAnswer: 'I use scale_pos_weight or SMOTE to balance positive/negative sample loss weights. To prevent overfitting, I tune max_depth (3-7), subsample (0.8), colsample_bytree (0.8), and apply L1/L2 regularization.'
+      });
+      candidateTechPool.push({
+        id: 'skl_pipe',
+        category: 'Technical',
+        domain: 'Scikit-Learn Pipelines & Data Leakage',
+        question: 'How do you prevent data leakage during cross-validation by wrapping feature scaling, imputation, and model fitting inside Scikit-Learn Pipelines?',
+        resumeBadge: 'Tailored from resume skill: Scikit-Learn',
+        sampleAnswer: 'I fit feature scaling and encoding ONLY on training folds inside pipeline steps, ensuring test fold parameters remain completely unseen during evaluation.'
+      });
+    }
+
+    // 3. PyTorch & Deep Learning
+    if (extractedSkillsLower.some(s => ['pytorch', 'tensorflow', 'keras', 'deep learning'].includes(s))) {
+      candidateTechPool.push({
+        id: 'ai_torch',
+        category: 'Technical',
+        domain: 'PyTorch Deep Learning Models',
+        question: 'Can you explain how you design custom PyTorch Dataset and DataLoader classes for efficient batching, data augmentation, and GPU memory management (.to(device))?',
+        resumeBadge: 'Tailored from resume skill: PyTorch',
+        sampleAnswer: 'I subclass torch.utils.data.Dataset, implementing __len__ and __getitem__ methods to load and preprocess samples lazily. I configure DataLoader with pinned memory and num_workers.'
+      });
+      candidateTechPool.push({
+        id: 'ai_autograd',
+        category: 'Technical',
+        domain: 'PyTorch Autograd & Computational Graphs',
+        question: 'How does PyTorch construct dynamic computational graphs during forward passes, and when should you use torch.no_grad() or tensor.detach()?',
+        resumeBadge: 'Tailored from resume skill: PyTorch',
+        sampleAnswer: 'PyTorch builds DAGs dynamically on each forward pass. During evaluation, wrapping calls in torch.no_grad() disables gradient tracking, saving memory and accelerating inference.'
+      });
+    }
+
+    // 4. SQL & Databases
+    if (extractedSkillsLower.some(s => ['sql', 'postgresql', 'mysql', 'sqlite'].includes(s))) {
+      candidateTechPool.push({
+        id: 'be_sql',
+        category: 'Technical',
+        domain: 'SQL Query Execution & Schema Design',
+        question: 'Describe how you write complex SQL queries using CTEs, window functions, and indexing to process analytics data efficiently.',
+        resumeBadge: 'Tailored from resume skill: SQL',
+        sampleAnswer: 'I structure complex aggregations using Common Table Expressions (CTEs) for readability and use window functions (ROW_NUMBER(), PARTITION BY) for ranking while analyzing execution plans with EXPLAIN ANALYZE.'
+      });
+    }
+
+    // 5. HTML5 & Responsive CSS Layouts
+    if (extractedSkillsLower.some(s => ['html', 'css', 'tailwind', 'bootstrap'].includes(s))) {
+      candidateTechPool.push({
+        id: 'web_html_css',
+        category: 'Technical',
+        domain: 'HTML5 & Responsive CSS Layouts',
+        question: 'How do you structure semantic HTML5 elements and build responsive CSS layouts using Flexbox, CSS Grid, and media queries across modern browsers?',
+        resumeBadge: 'Tailored from resume skill: HTML5 / CSS3',
+        sampleAnswer: 'I use semantic HTML markup (<main>, <section>, <article>, <nav>) and landmark ARIA roles for accessibility. For layouts, I use CSS Grid for 2D page architecture and Flexbox for 1D alignment.'
+      });
+    }
+
+    // 6. React.js & Modern Frontend
+    if (extractedSkillsLower.some(s => ['react', 'vue', 'angular', 'next.js'].includes(s))) {
+      candidateTechPool.push({
+        id: 'fe_react',
+        category: 'Technical',
+        domain: 'Frontend Architecture & React.js',
+        question: 'How do you manage component state and side effects in React applications using custom hooks and state management libraries?',
+        resumeBadge: 'Tailored from resume skill: React.js',
+        sampleAnswer: 'I keep transient UI state localized with useState, isolate async data fetching in useEffect with clean cleanup functions, and manage global application state using React Context.'
+      });
+    }
+
+    // 7. JavaScript & TypeScript
+    if (extractedSkillsLower.some(s => ['javascript', 'typescript'].includes(s))) {
+      candidateTechPool.push({
+        id: 'js_ts',
+        category: 'Technical',
+        domain: 'Modern JavaScript (ES6+) & Async Programming',
+        question: 'How do you handle asynchronous execution, Promises, async/await, closures, and DOM event delegation in modern JavaScript?',
+        resumeBadge: 'Tailored from resume skill: JavaScript / TypeScript',
+        sampleAnswer: 'I structure asynchronous operations with async/await and try/catch for clean error handling. I leverage closures for data encapsulation and use event delegation on parent containers.'
+      });
+    }
+
+    // Dynamic Custom Questions strictly for candidate's detected skills
+    extractedSkillsLower.forEach(sk => {
+      const skTitle = formatSkillCanonical(sk);
+      const skSlug = sk.replace(/[^a-z0-9]/g, '_');
+      const customQ1 = {
+        id: `custom_${skSlug}_1`,
+        category: 'Technical',
+        domain: `Domain Competency & ${skTitle}`,
+        question: `How do you leverage ${skTitle} in professional environments to streamline workflows, enforce accuracy, and optimize operational performance?`,
+        resumeBadge: `Tailored from resume skill: ${skTitle}`,
+        sampleAnswer: `I follow industry best practices when executing tasks with ${skTitle}, establishing standardized procedures, conducting thorough quality checks, and monitoring key metrics.`
+      };
+      const customQ2 = {
+        id: `custom_${skSlug}_2`,
+        category: 'Technical',
+        domain: `Strategy & ${skTitle}`,
+        question: `Describe your approach to troubleshooting errors, auditing data integrity, and solving complex challenges when working with ${skTitle}.`,
+        resumeBadge: `Tailored from resume skill: ${skTitle}`,
+        sampleAnswer: `I isolate root causes systematically, analyze input parameters against compliance standards, and implement permanent corrective controls.`
+      };
+      const customQ3 = {
+        id: `custom_${skSlug}_3`,
+        category: 'Technical',
+        domain: `Reporting & ${skTitle}`,
+        question: `How do you present analytical findings, reconciliations, and reporting insights derived from ${skTitle} to executive decision-makers?`,
+        resumeBadge: `Tailored from resume skill: ${skTitle}`,
+        sampleAnswer: `I translate raw outputs into executive summary dashboards, highlighting key trends, risk exposures, and actionable strategic recommendations.`
+      };
+      const customQ4 = {
+        id: `custom_${skSlug}_4`,
+        category: 'Technical',
+        domain: `Process Scaling & ${skTitle}`,
+        question: `Walk through a scenario where you scaled or automated a manual process involving ${skTitle} to increase efficiency and eliminate manual error.`,
+        resumeBadge: `Tailored from resume skill: ${skTitle}`,
+        sampleAnswer: `I documented baseline manual steps, identified repetitive bottlenecks, built automated templates and validation rules, reducing cycle time substantially.`
+      };
+
+      [customQ1, customQ2, customQ3, customQ4].forEach(cq => {
+        if (!candidateTechPool.some(q => q.id === cq.id)) {
+          candidateTechPool.push(cq);
+        }
+      });
+    });
+
     const hrQuestionsPool = [
       {
         id: 'h1',
         category: 'HR & Behavioral',
-        domain: 'Conflict Resolution & Teamwork',
-        question: `Tell me about a time when you had a technical or design disagreement with a team member. How did you reach a consensus?`,
+        domain: 'Conflict Resolution & Technical Leadership',
+        question: `Tell me about a time when you had a technical disagreement with a team member. How did you reach a consensus?`,
         resumeBadge: 'Behavioral & Leadership',
-        sampleAnswer: `Situation: During project planning, a colleague preferred a traditional layout while I advocated for a responsive auto-layout system. Action: I built a rapid side-by-side prototype demonstrating user flow efficiency. Result: Empirical metrics convinced the team to adopt the auto-layout design.`
+        sampleAnswer: `Situation: During project planning, a colleague preferred a traditional layout while I advocated for a modern modular architecture. Action: I built a rapid side-by-side prototype. Result: Empirical metrics convinced the team to adopt the proposed design.`
       },
       {
         id: 'h2',
@@ -902,18 +1147,10 @@ const CareerToolsPage = ({ initialView = 'dashboard' }) => {
       {
         id: 'h3',
         category: 'HR & Behavioral',
-        domain: 'Stakeholder Communication',
-        question: `How do you explain complex technical concepts or design trade-offs to non-technical business stakeholders?`,
-        resumeBadge: 'Stakeholder Communication',
-        sampleAnswer: `I avoid deep jargon and use clear visual mockups and business metrics (turnaround speed, conversion rate, user retention) so stakeholders can make informed decisions.`
-      },
-      {
-        id: 'h4',
-        category: 'HR & Behavioral',
-        domain: 'Growth & Continuous Learning',
-        question: `How do you keep your skills up-to-date with fast-changing industry standards and new design/tech tools?`,
-        resumeBadge: 'Continuous Learning',
-        sampleAnswer: `I dedicate regular weekly time to exploring industry design systems, reading technical documentation, building experimental side projects, and following domain community updates.`
+        domain: 'Incident Management & Ownership',
+        question: `Describe a scenario where a production deployment encountered a critical bug. What steps did you take to mitigate and prevent future occurrences?`,
+        resumeBadge: 'Incident Management',
+        sampleAnswer: `Situation: An unexpected edge case broke API responses post-deploy. Action: I rolled back to previous stable release, pinpointed root cause in logs, added regression tests, and redeployed safely.`
       }
     ];
 
@@ -921,32 +1158,28 @@ const CareerToolsPage = ({ initialView = 'dashboard' }) => {
     let selectedHr = [];
 
     if (interviewType === 'technical') {
-      selectedTech = technicalQuestionsPool.slice(0, questionCount);
+      selectedTech = candidateTechPool.slice(0, questionCount);
     } else if (interviewType === 'hr') {
       selectedHr = hrQuestionsPool.slice(0, questionCount);
     } else {
-      // Mixed
       const techCount = Math.ceil(questionCount / 2);
       const hrCount = Math.floor(questionCount / 2);
-      selectedTech = technicalQuestionsPool.slice(0, techCount);
+      selectedTech = candidateTechPool.slice(0, techCount);
       selectedHr = hrQuestionsPool.slice(0, hrCount);
     }
 
     setGeneratedInterviewData({
       type: interviewType,
       difficulty: interviewDifficulty,
-      questionCount,
+      questionCount: selectedTech.length + selectedHr.length,
       detectedSkills: detectedSkillsCanonical,
       technicalQuestions: selectedTech,
       hrQuestions: selectedHr
     });
 
     setExpandedAnswers({});
-
-    setTimeout(() => {
-      setLoading(false);
-      setActiveView('interview-prep-output');
-    }, 500);
+    setLoading(false);
+    setActiveView('interview-prep-output');
   };
 
   const toggleSampleAnswer = (qId) => {
@@ -1465,13 +1698,13 @@ Applicant / Candidate`;
               </div>
               <h1 className="text-3xl sm:text-4xl font-black tracking-tight">Career Tools Dashboard</h1>
               <p className="text-blue-100/80 text-sm sm:text-base max-w-2xl">
-                Explore personalized career roadmaps, analyze skill gaps, practice interview questions, and craft winning cover letters tailored to your profile.
+                Explore personalized career roadmaps, analyze skill gaps, practice interactive AI mock interviews, and craft winning cover letters tailored to your profile.
               </p>
             </div>
           </div>
 
-          {/* 4 Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Card 1: Career Path */}
             <div className="bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-7 flex flex-col justify-between space-y-5">
               <div className="space-y-3">
@@ -1512,27 +1745,27 @@ Applicant / Candidate`;
               </button>
             </div>
 
-            {/* Card 3: Interview Prep */}
+            {/* Card 4: Interview Prep */}
             <div className="bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-7 flex flex-col justify-between space-y-5">
               <div className="space-y-3">
                 <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-100 shadow-sm">
                   <LuMic className="w-7 h-7 text-indigo-600" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900">AI Interview Preparation</h3>
+                <h3 className="text-xl font-bold text-gray-900">AI Question Bank</h3>
                 <p className="text-xs text-gray-600 leading-relaxed">
                   Access role-specific technical and behavioral interview questions extracted from your resume with sample STAR answers.
                 </p>
               </div>
               <button
                 onClick={() => handleOpenTool('Interview Prep')}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-5 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 text-sm"
+                className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-5 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 text-sm"
               >
-                <span>Start Prep</span>
+                <span>Question Bank</span>
                 <span>→</span>
               </button>
             </div>
 
-            {/* Card 4: Cover Letter Generator */}
+            {/* Card 5: Cover Letter Generator */}
             <div className="bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-7 flex flex-col justify-between space-y-5">
               <div className="space-y-3">
                 <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center border border-purple-100 shadow-sm">
@@ -1957,7 +2190,10 @@ Applicant / Candidate`;
                   <input
                     type="file"
                     accept=".pdf,.docx,.txt"
-                    onChange={(e) => setInterviewFile(e.target.files?.[0] || null)}
+                    onChange={(e) => {
+                      setInterviewFile(e.target.files?.[0] || null);
+                      setGeneratedInterviewData(null);
+                    }}
                     className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700"
                   />
                   {interviewFile && (

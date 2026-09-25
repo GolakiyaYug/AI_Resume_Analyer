@@ -86,11 +86,11 @@ const Home = () => {
         <div className="text-center mb-10">
           <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Quick Career Tools</h2>
           <p className="text-gray-600 text-lg max-w-xl mx-auto">
-            Supercharge your job search with our AI-powered interview preparation, cover letter builder, and salary market predictor.
+            Supercharge your job search with our AI-powered salary predictor and cover letter builder.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left max-w-4xl mx-auto">
           {/* AI Salary Negotiator Card */}
           <Link to="/salary-negotiator" className="bg-white p-8 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col justify-between">
             <div>
@@ -99,7 +99,6 @@ const Home = () => {
               </div>
               <div className="flex items-center gap-2 mb-2">
                 <h3 className="text-2xl font-bold text-gray-900 group-hover:text-teal-600 transition-colors">Salary Negotiator</h3>
-                <span className="bg-teal-100 text-teal-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase">New</span>
               </div>
               <p className="text-gray-600 leading-relaxed text-sm">
                 Predict your market salary range (Min, Avg, Max), receive value justification points, and get AI recruiter negotiation scripts.
@@ -111,28 +110,11 @@ const Home = () => {
             </div>
           </Link>
 
-          {/* AI Interview Prep Card */}
-          <Link to="/career-tools" className="bg-white p-8 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col justify-between">
-            <div>
-              <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-5 border border-indigo-100 shadow-sm">
-                <LuMic className="w-7 h-7" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors">AI Interview Prep</h3>
-              <p className="text-gray-600 leading-relaxed text-sm">
-                Generate domain-specific technical &amp; behavioral interview questions tailored directly to your target role and resume skills.
-              </p>
-            </div>
-            <div className="mt-6 text-sm font-bold text-indigo-600 group-hover:underline flex items-center gap-1">
-              <span>Practice Questions</span>
-              <span>→</span>
-            </div>
-          </Link>
-
           {/* Cover Letter Generator Card */}
           <Link to="/career-tools" className="bg-white p-8 rounded-2xl shadow-md border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col justify-between">
             <div>
               <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center mb-5 border border-purple-100 shadow-sm">
-                <LuFileText className="w-7 h-7" />
+                <LuFileText className="w-7 h-7 text-purple-600" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">Cover Letter Generator</h3>
               <p className="text-gray-600 leading-relaxed text-sm">

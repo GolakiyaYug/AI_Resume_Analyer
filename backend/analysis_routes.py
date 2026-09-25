@@ -26,26 +26,164 @@ ACTION_WORDS = {
     "led", "managed", "optimized", "automated", "delivered", "increased",
 }
 COMMON_SKILLS = {
+    # Tech & Software Engineering
     "python", "java", "javascript", "typescript", "react", "vue", "angular", "node", "express", "next.js", "html", "css", "tailwind", "bootstrap",
     "sql", "postgresql", "mysql", "mongodb", "redis", "sqlite",
     "numpy", "pandas", "scikit-learn", "pytorch", "tensorflow", "keras", "deep learning", "machine learning", "nlp", "opencv", "data analysis", "power bi", "tableau", "excel", "statistics",
+    "xgboost", "lightgbm", "catboost", "huggingface", "transformers", "llm", "langchain", "rag", "spacy", "nltk", "mlflow", "vector databases", "feature engineering", "hyperparameter tuning",
     "flask", "django", "fastapi", "aws", "azure", "gcp", "docker", "kubernetes", "terraform", "git", "c++", "c#", "go", "rust", "swift", "kotlin",
     "figma", "ui/ux", "ux", "ui", "photoshop", "illustrator", "wireframing", "user research", "design systems",
-    "communication", "leadership", "problem solving",
+
+    # Core Engineering, CAD/CAM/CAE & Hardware
+    "solidworks", "ansys", "autocad", "catia", "revit", "matlab", "simulink", "creo", "inventor", "fusion 360", "labview", "plc", "scada", "abaqus",
+    "cad", "cam", "fea", "cfd", "finite element analysis", "computational fluid dynamics", "3d modeling", "gd&t", "hvac", "embedded systems",
+    "microcontrollers", "arduino", "raspberry pi", "pcb design", "altium", "proteus",
+
+    # Finance, Accounting & Business Tools
+    "sap fico", "sap", "quickbooks", "tally", "tally prime", "tally erp 9", "excel", "ms excel", "financial modeling", "auditing", "internal audit", "external audit",
+    "taxation", "income tax", "gst", "vat", "accounting", "financial analysis", "risk management", "compliance", "sox compliance", "portfolio management",
+    "corporate finance", "valuation", "budgeting", "forecasting", "erp systems", "erp", "bookkeeping", "gaap", "ifrs", "payroll", "financial reporting",
+    "cash flow management", "variance analysis", "cost accounting", "treasury", "financial planning", "fp&a", "due diligence", "credit analysis",
+    "wealth management", "banking", "accounts payable", "accounts receivable", "bank reconciliation", "financial statements", "balance sheet",
+
+    # Business Management, Operations & Marketing
+    "project management", "stakeholder management", "operations", "supply chain", "human resources", "hr", "marketing", "digital marketing", "sales",
+    "business strategy", "crm", "salesforce", "hubspot", "seo", "agile", "scrum", "vendor management", "kpi tracking", "communication", "leadership", "problem solving",
 }
+
+# Strict Blacklist of Human Names & Resume Structural Stopwords
+STOPWORDS_AND_NAMES = {
+    # Structural Stopwords
+    "resume", "curriculum", "vitae", "summary", "profile", "objective", "experience", "education",
+    "projects", "personal", "details", "contact", "email", "phone", "mobile", "address", "linkedin",
+    "github", "university", "college", "school", "degree", "bachelor", "master", "phd", "diploma",
+    "institute", "department", "location", "city", "state", "country", "pin", "code", "reference",
+    "references", "declaration", "date", "place", "signature", "name", "first", "last", "gender",
+    "dob", "nationality", "marital", "status", "languages", "known", "hobbies", "interests",
+    "curriculum vitae", "work history", "academic background", "professional summary",
+
+    # Pre-populated Common Names Blacklist
+    "rohit", "verma", "sharma", "kumar", "singh", "gupta", "patel", "shah", "rao", "reddy", "nair",
+    "joshi", "kulkarni", "deshmukh", "mehta", "jain", "agarwal", "bhat", "khan", "ali", "ahmed",
+    "john", "smith", "david", "michael", "alex", "james", "robert", "william", "mary", "patricia",
+    "jennifer", "linda", "elizabeth", "barbara", "susan", "jessica", "sarah", "karen", "nancy",
+    "yash", "rahul", "amit", "priya", "anita", "pooja", "sunil", "anil", "vikram", "sanjay",
+    "vijay", "rajesh", "ramesh", "suresh", "deepak", "manish", "alok", "neha", "swati", "rashi"
+}
+
 ROLE_SKILLS = {
-    "Frontend Developer": {"javascript", "typescript", "react", "html", "css"},
-    "Backend Developer": {"python", "java", "flask", "django", "node", "sql"},
-    "Full Stack Developer": {"javascript", "react", "node", "python", "sql"},
-    "Data Analyst": {"python", "sql", "excel", "machine learning"},
-    "Machine Learning Engineer": {"python", "machine learning", "sql"},
-    "DevOps Engineer": {"aws", "docker", "git", "python"},
+    "AI/ML Engineer": {
+        "python", "pytorch", "tensorflow", "machine learning", "deep learning",
+        "nlp", "scikit-learn", "pandas", "numpy", "transformers", "huggingface", "llm"
+    },
+    "Data Analyst": {
+        "python", "sql", "excel", "tableau", "power bi", "data analysis",
+        "pandas", "statistics", "mysql", "postgresql"
+    },
+    "Data Scientist": {
+        "python", "sql", "machine learning", "data analysis", "pandas", "numpy",
+        "scikit-learn", "statistics", "pytorch", "tensorflow"
+    },
+    "Financial Analyst": {
+        "excel", "financial analysis", "financial modeling", "accounting",
+        "budgeting", "forecasting", "valuation", "corporate finance", "financial reporting"
+    },
+    "Mechanical Engineer": {
+        "solidworks", "ansys", "autocad", "catia", "matlab", "cad", "cam",
+        "fea", "cfd", "3d modeling", "gd&t"
+    },
+    "Software Engineer": {
+        "python", "java", "c++", "sql", "git", "docker", "c#", "go"
+    },
+    "Frontend Developer": {
+        "javascript", "typescript", "react", "html", "css", "vue", "angular",
+        "tailwind", "next.js"
+    },
+    "Backend Developer": {
+        "python", "java", "node", "express", "flask", "django", "fastapi",
+        "sql", "postgresql", "mongodb", "redis"
+    },
+    "Full Stack Developer": {
+        "javascript", "typescript", "react", "node", "python", "html", "css",
+        "sql", "mongodb", "postgresql", "git"
+    },
+    "DevOps / Cloud Engineer": {
+        "aws", "azure", "gcp", "docker", "kubernetes", "terraform", "git"
+    },
 }
+
+
+
+def _extract_candidate_name_words(text):
+    """Extract candidate name words from top header lines of text to blacklist them from skills."""
+    if not text:
+        return set()
+    lines = [line.strip() for line in text.split("\n") if line.strip()][:6]
+    name_words = set()
+    for line in lines:
+        name_match = re.search(r"(?:name|candidate name)\s*[:\-]\s*([a-zA-Z\s]{2,40})", line, re.IGNORECASE)
+        if name_match:
+            for w in name_match.group(1).split():
+                if len(w) > 1:
+                    name_words.add(w.lower())
+        else:
+            words = re.findall(r"\b[a-zA-Z]{2,20}\b", line)
+            if 1 <= len(words) <= 4 and not any(w.lower() in STOPWORDS_AND_NAMES for w in words):
+                for w in words:
+                    name_words.add(w.lower())
+    return name_words
+
+
+def _extract_skills_from_text(text):
+    if not text:
+        return []
+    lower_text = text.lower()
+    found = set()
+
+    # Get blacklisted candidate name words from header
+    candidate_name_words = _extract_candidate_name_words(text)
+    blacklisted = STOPWORDS_AND_NAMES.union(candidate_name_words)
+
+    # 1. Match against expanded COMMON_SKILLS set
+    for skill in COMMON_SKILLS:
+        if skill in blacklisted:
+            continue
+        escaped = re.escape(skill)
+        pattern = r"(?:^|[^a-zA-Z0-9#+])" + escaped + r"(?:$|[^a-zA-Z0-9#+])"
+        if re.search(pattern, lower_text, re.IGNORECASE):
+            found.add(skill)
+
+    # 2. Extract multi-word skills & tools from explicit Resume Sections
+    skills_headers_pattern = r"(?:skills|core competencies|expertise|tools|technical skills|engineering tools|financial skills|accounting tools|key skills|proficiencies|software)\s*[:\-\n]+([^\n\r]+(?:\n[^\n\r]+){0,5})"
+    matches = re.finditer(skills_headers_pattern, text, re.IGNORECASE)
+    for m in matches:
+        section_text = m.group(1)
+        raw_tokens = re.split(r"[,;|\n•·\t/]", section_text)
+        for tok in raw_tokens:
+            cleaned = tok.strip()
+            cleaned_lower = cleaned.lower()
+            if 2 <= len(cleaned) <= 40 and cleaned_lower not in blacklisted:
+                tok_words = cleaned_lower.split()
+                if not any(w in blacklisted for w in tok_words):
+                    if re.search(r"[a-zA-Z0-9]", cleaned):
+                        found.add(cleaned_lower)
+
+    return sorted(list(found))
 
 
 def _extract_file_text(file_storage):
+    if not file_storage:
+        return ""
+    try:
+        file_storage.seek(0)
+    except Exception:
+        pass
     filename = (file_storage.filename or "").lower()
     content = file_storage.read()
+    try:
+        file_storage.seek(0)
+    except Exception:
+        pass
     if len(content) > 10 * 1024 * 1024:
         raise ValueError("Resume file must be smaller than 10 MB")
     if filename.endswith(".pdf"):
@@ -88,7 +226,7 @@ def _analyze_resume(text, job_description=""):
     lower = normalized.lower()
     words = re.findall(r"[a-zA-Z][a-zA-Z+#.-]{1,}", lower)
     sections = [name for name, pattern in SECTION_PATTERNS.items() if re.search(pattern, lower)]
-    found_skills = sorted(skill for skill in COMMON_SKILLS if skill in lower)
+    found_skills = _extract_skills_from_text(lower)
     role_predictions = sorted(
         (
             {
@@ -361,7 +499,7 @@ def _calculate_salary_market(text, job_role, location, experience_years):
     # Extract skills
     normalized = re.sub(r"\s+", " ", text or "").strip()
     lower_text = normalized.lower()
-    found_skills = sorted(skill for skill in COMMON_SKILLS if skill in lower_text)
+    found_skills = _extract_skills_from_text(lower_text)
     
     # Base Salary Benchmarks in USD (annual)
     base_min = 85000
@@ -523,4 +661,571 @@ def salary_negotiator():
 
     res = _calculate_salary_market(text, job_role, location, experience_years)
     return jsonify(res), 200
+
+
+def _evaluate_interview_answer(question, answer, job_role, detected_skills):
+    text = (answer or "").strip()
+    words = re.findall(r"\w+", text)
+    word_count = len(words)
+    lower_ans = text.lower()
+    lower_q = (question or "").lower()
+
+    # Base scoring out of 10 based on length, detail, and keyword presence
+    score = 6.0
+
+    if word_count == 0:
+        return {
+            "score": 0.0,
+            "rating": "Needs Answer",
+            "feedback": "No answer was provided. Try speaking or typing a structured response explaining your approach.",
+            "improvement_tips": [
+                "Use the STAR method (Situation, Task, Action, Result) for behavioral questions.",
+                "Mention specific technical tools, frameworks, and architecture decisions.",
+                "Provide quantified results or metrics where possible."
+            ]
+        }
+
+    # Length & detail bonus
+    if word_count >= 15: score += 1.0
+    if word_count >= 40: score += 1.0
+    if word_count >= 80: score += 0.5
+
+    # Tech keyword & skill density check
+    matched_skills = [s for s in (detected_skills or []) if s.lower() in lower_ans]
+    if matched_skills:
+        score += min(1.5, len(matched_skills) * 0.5)
+
+    # STAR structure indicators
+    star_keywords = {"situation", "task", "action", "result", "led", "built", "designed", "optimized", "solved", "improved", "implemented", "achieved"}
+    star_matches = sum(1 for k in star_keywords if k in lower_ans)
+    if star_matches >= 2:
+        score += 0.5
+
+    final_score = round(min(10.0, max(3.5, score)), 1)
+
+    # Feedback rating category
+    if final_score >= 8.5:
+        rating = "Excellent"
+        feedback = f"Outstanding answer! You effectively articulated technical concepts and structure. Mentioning tools like {', '.join(matched_skills) if matched_skills else 'core domain practices'} adds strong credibility."
+    elif final_score >= 7.0:
+        rating = "Strong"
+        feedback = "Solid response with clear reasoning. To elevate this to top-tier, elaborate more on specific metrics, trade-offs, and outcomes."
+    else:
+        rating = "Developing"
+        feedback = "Good foundation, but your answer could be expanded with more technical details, explicit action steps, and measurable results."
+
+    improvement_tips = []
+    if not matched_skills:
+        improvement_tips.append("Incorporate specific technical tools or methods (e.g. state management, API design, data pipelines) to demonstrate deep hands-on experience.")
+    if word_count < 35:
+        improvement_tips.append("Expand on your answer with concrete context: outline the problem, your exact technical contributions, and the final impact.")
+    if not any(k in lower_ans for k in ["result", "percent", "percentile", "%", "metric", "improved", "scaled"]):
+        improvement_tips.append("Conclude your response with measurable outcomes or impact (e.g., 'reduced latency by 30%', 'scaled to 10k users').")
+    if len(improvement_tips) < 2:
+        improvement_tips.append("Maintain clear articulation and concise structure using the STAR methodology for storytelling.")
+
+    return {
+        "score": final_score,
+        "rating": rating,
+        "feedback": feedback,
+        "improvement_tips": improvement_tips[:3]
+    }
+
+
+@analysis_bp.route("/mock-interview/evaluate", methods=["POST"])
+@jwt_required(optional=True)
+def evaluate_mock_interview():
+    data = request.get_json(silent=True) or request.form
+    question = (data.get("question") or "").strip()
+    answer = (data.get("answer") or "").strip()
+    job_role = (data.get("job_role") or "Software Engineer").strip()
+    skills = data.get("skills") or []
+    if isinstance(skills, str):
+        skills = [s.strip() for s in skills.split(",") if s.strip()]
+
+    result = _evaluate_interview_answer(question, answer, job_role, skills)
+    return jsonify(result), 200
+
+
+def _generate_interview_questions_backend(text, job_description, interview_type, difficulty, question_count):
+    # Parse text strictly from scratch for this request
+    detected_skills = _extract_skills_from_text(text)
+    
+    # Dynamic fallback ONLY if no COMMON_SKILLS matched in raw file text
+    if not detected_skills and text:
+        candidate_name_words = _extract_candidate_name_words(text)
+        blacklisted = STOPWORDS_AND_NAMES.union(candidate_name_words)
+        tech_words = re.findall(r"\b[A-Za-z0-9#+.-]{3,}\b", text)
+        extracted_words = []
+        for w in tech_words:
+            if w.lower() not in blacklisted and len(extracted_words) < 8:
+                extracted_words.append(w.title())
+        detected_skills = extracted_words if extracted_words else ["Core Engineering"]
+
+    # ABSOLUTE STRICT WHITELIST OF EXTRACTED SKILLS
+    whitelisted_skills = set(s.lower() for s in detected_skills)
+
+    # Repository of domain question pools mapped strictly to skill keys
+    SKILL_QUESTION_POOLS = {
+        # --- CORE ENGINEERING & CAD/CAM/CAE POOLS ---
+        "solidworks": [
+            {
+                "id": "sw_1",
+                "category": "Technical",
+                "domain": "SolidWorks 3D CAD & Mechanical Design",
+                "question": "How do you design complex 3D parametric parts, weldments, and large assemblies in SolidWorks using proper geometric constraints, equations, and MBD annotations?",
+                "resumeBadge": "Tailored from resume skill: SolidWorks",
+                "sampleAnswer": "I build parametric sketches with fully defined relations, utilize top-down assembly modeling to prevent interferences, and apply MBD annotations for manufacturing handoff."
+            },
+            {
+                "id": "sw_2",
+                "category": "Technical",
+                "domain": "SolidWorks Motion & GD&T Drafting",
+                "question": "Describe your approach to conducting motion analysis, collision detection, and drafting manufacturing drawings with GD&T callouts in SolidWorks.",
+                "resumeBadge": "Tailored from resume skill: SolidWorks",
+                "sampleAnswer": "I set up SolidWorks Motion studies to evaluate kinematic forces and joint clearance, drafting ASME Y14.5 compliant engineering drawings with datum targets and tolerance stacks."
+            }
+        ],
+        "ansys": [
+            {
+                "id": "ansys_1",
+                "category": "Technical",
+                "domain": "ANSYS FEA & Structural Simulation",
+                "question": "How do you set up Finite Element Analysis (FEA) models in ANSYS Mechanical, defining boundary conditions, meshing refinement, and contact formulations?",
+                "resumeBadge": "Tailored from resume skill: ANSYS",
+                "sampleAnswer": "I import CAD geometry, apply mesh convergence studies using hex/tetrahedral elements, define non-linear contact behavior (bonded/frictional), and solve for Von Mises stress and safety factors."
+            },
+            {
+                "id": "ansys_2",
+                "category": "Technical",
+                "domain": "ANSYS Thermal & CFD Analysis",
+                "question": "Describe your workflow for running steady-state thermal, modal vibration, or Fluent CFD simulations in ANSYS to optimize part thermal dissipation and structural resonance.",
+                "resumeBadge": "Tailored from resume skill: ANSYS",
+                "sampleAnswer": "I define fluid domains and inflation layers in ANSYS Fluent, solve Navier-Stokes turbulence models (k-epsilon), and verify natural frequency modes to avoid harmonic resonance."
+            }
+        ],
+        "autocad": [
+            {
+                "id": "acad_1",
+                "category": "Technical",
+                "domain": "AutoCAD 2D/3D Drafting & Standards",
+                "question": "How do you structure layer standards, dynamic blocks, external references (Xrefs), and sheet sets in AutoCAD for architectural or mechanical drafting?",
+                "resumeBadge": "Tailored from resume skill: AutoCAD",
+                "sampleAnswer": "I enforce standardized AIA/ISO layer conventions, create dynamic blocks with visibility states, link Xrefs for collaborative drafting, and publish multi-sheet plotting layouts."
+            },
+            {
+                "id": "acad_2",
+                "category": "Technical",
+                "domain": "AutoCAD Dimensioning & Tolerance Stacks",
+                "question": "Describe how you ensure dimensioning accuracy, tolerance stacks, and title block compliance across production engineering drawings in AutoCAD.",
+                "resumeBadge": "Tailored from resume skill: AutoCAD",
+                "sampleAnswer": "I apply explicit dimension styles, calculate worst-case and RSS tolerance stacks, and audit drawing revisions against engineering release standards."
+            }
+        ],
+        "matlab": [
+            {
+                "id": "mat_1",
+                "category": "Technical",
+                "domain": "MATLAB & Control System Modeling",
+                "question": "How do you model control systems, signal processing algorithms, and dynamic system simulations using MATLAB and Simulink?",
+                "resumeBadge": "Tailored from resume skill: MATLAB",
+                "sampleAnswer": "I derive system transfer functions, analyze stability using Bode plots and Root Locus in MATLAB, and build block diagram feedback loops in Simulink."
+            },
+            {
+                "id": "mat_2",
+                "category": "Technical",
+                "domain": "MATLAB Scripting & Optimization",
+                "question": "Describe your approach to writing modular vectorized MATLAB scripts for numerical analysis, data visualization, and parameter optimization.",
+                "resumeBadge": "Tailored from resume skill: MATLAB",
+                "sampleAnswer": "I replace scalar loops with matrix operations, write custom M-file functions, and use optimization toolboxes (fmincon / lsqcurvefit) to fit empirical data models."
+            }
+        ],
+        # --- FINANCIAL, ACCOUNTING & ERP POOLS ---
+        "sap": [
+            {
+                "id": "sap_1",
+                "category": "Technical",
+                "domain": "SAP FICO & Enterprise Resource Planning",
+                "question": "How do you configure and manage General Ledger (G/L), Accounts Payable (A/P), and Accounts Receivable (A/R) modules in SAP FICO to ensure seamless financial closing?",
+                "resumeBadge": "Tailored from resume skill: SAP FICO",
+                "sampleAnswer": "I configure G/L master records, document types, and posting keys while executing automated month-end clearing and bank reconciliation workflows in SAP FICO."
+            },
+            {
+                "id": "sap_2",
+                "category": "Technical",
+                "domain": "SAP Asset Accounting & Controlling",
+                "question": "Describe your process for asset depreciation runs, cost center allocation, and internal order settlement within SAP FICO / Controlling (CO).",
+                "resumeBadge": "Tailored from resume skill: SAP FICO",
+                "sampleAnswer": "I define asset classes and depreciation keys in SAP FI-AA, run monthly AFAB depreciation postings, and settle internal order variances to cost centers."
+            }
+        ],
+        "quickbooks": [
+            {
+                "id": "qb_1",
+                "category": "Technical",
+                "domain": "QuickBooks & Bookkeeping Automation",
+                "question": "How do you structure the Chart of Accounts, reconcile bank feeds, and automate recurring invoices in QuickBooks to maintain accurate real-time cash flow visibility?",
+                "resumeBadge": "Tailored from resume skill: QuickBooks",
+                "sampleAnswer": "I organize account hierarchies, map bank feeds using automated rules, and execute monthly bank and credit card reconciliations in QuickBooks Online/Desktop."
+            },
+            {
+                "id": "qb_2",
+                "category": "Technical",
+                "domain": "QuickBooks Payroll & Reporting",
+                "question": "Walk through how you resolve unallocated transactions, process payroll tax liabilities, and generate P&L statements in QuickBooks for annual audit readiness.",
+                "resumeBadge": "Tailored from resume skill: QuickBooks",
+                "sampleAnswer": "I reclassify uncategorized expenses, verify payroll tax liability registers, and run comparative Profit & Loss and Balance Sheet reports for executive management."
+            }
+        ],
+        "tally": [
+            {
+                "id": "tally_1",
+                "category": "Technical",
+                "domain": "Tally ERP 9 / TallyPrime Accounting",
+                "question": "How do you manage GST/VAT compliance, voucher entry, and inventory batch tracking in Tally ERP 9 / TallyPrime?",
+                "resumeBadge": "Tailored from resume skill: Tally",
+                "sampleAnswer": "I maintain ledger masters, configure GST tax rates, record sales/purchase vouchers, and generate GSTR-1 and GSTR-3B audit returns directly from Tally."
+            },
+            {
+                "id": "tally_2",
+                "category": "Technical",
+                "domain": "Tally Trial Balance & Closing Entries",
+                "question": "Describe your approach to generating Trial Balances, Balance Sheets, and Profit & Loss statements in Tally for annual audit readiness.",
+                "resumeBadge": "Tailored from resume skill: Tally",
+                "sampleAnswer": "I review ledger balances, record year-end closing and adjustment vouchers, and export verified financial statements for external auditor review."
+            }
+        ],
+        "excel": [
+            {
+                "id": "xl_1",
+                "category": "Technical",
+                "domain": "Advanced Excel & Financial Automation",
+                "question": "How do you leverage advanced Excel functions (INDEX/MATCH, XLOOKUP, Dynamic Arrays, Power Query) to consolidate multi-entity financial data pipelines?",
+                "resumeBadge": "Tailored from resume skill: Advanced Excel",
+                "sampleAnswer": "I build dynamic data models using XLOOKUP and Power Query ETL queries, eliminating manual copy-pasting and establishing automated refreshable reporting workbooks."
+            },
+            {
+                "id": "xl_2",
+                "category": "Technical",
+                "domain": "Excel Financial Dashboards & PivotTables",
+                "question": "Describe how you build interactive financial executive dashboards using PivotTables, Slicers, and Data Validation while preserving workbook calculation speed.",
+                "resumeBadge": "Tailored from resume skill: Advanced Excel",
+                "sampleAnswer": "I structure data in clean tabular formats, build PivotTables with calculated fields and slicers, and optimize formula efficiency to avoid heavy volatile functions like OFFSET."
+            }
+        ],
+        "financial modeling": [
+            {
+                "id": "fm_1",
+                "category": "Technical",
+                "domain": "Financial Modeling & Valuation",
+                "question": "Walk through how you construct an integrated 3-Statement Financial Model (Income Statement, Balance Sheet, Cash Flow) from raw historical trial balances.",
+                "resumeBadge": "Tailored from resume skill: Financial Modeling",
+                "sampleAnswer": "I project revenue and expense drivers on the Income Statement, build supporting working capital and debt schedules, link net income to Cash Flow, and balance the Balance Sheet."
+            },
+            {
+                "id": "fm_2",
+                "category": "Technical",
+                "domain": "DCF Valuation & Sensitivity Analysis",
+                "question": "How do you incorporate sensitivity analysis, Scenario Manager, and WACC calculations into Discounted Cash Flow (DCF) valuation models to quantify financial risk?",
+                "resumeBadge": "Tailored from resume skill: Financial Modeling",
+                "sampleAnswer": "I calculate WACC using CAPM, project Unlevered Free Cash Flows over a 5-year horizon, estimate Terminal Value using Gordon Growth, and build 2-way data tables for sensitivity."
+            }
+        ],
+        "auditing": [
+            {
+                "id": "audit_1",
+                "category": "Technical",
+                "domain": "Internal & External Auditing",
+                "question": "Describe your methodology for developing an internal audit plan, testing key internal controls (SOX compliance), and documenting audit working papers.",
+                "resumeBadge": "Tailored from resume skill: Auditing",
+                "sampleAnswer": "I conduct risk assessments to identify high-risk financial processes, perform walkthroughs and sample testing of key controls, and log audit findings in standardized working papers."
+            },
+            {
+                "id": "audit_2",
+                "category": "Technical",
+                "domain": "Audit Analytics & Substantive Testing",
+                "question": "How do you execute audit sampling, journal entry analytics, and substantive analytical procedures to detect financial misstatements or fraud risks?",
+                "resumeBadge": "Tailored from resume skill: Auditing",
+                "sampleAnswer": "I extract ledger data into audit analytics tools, run Benford's Law and unusual keyword tests on manual journal entries, and perform detailed voucher verification."
+            }
+        ],
+        "taxation": [
+            {
+                "id": "tax_1",
+                "category": "Technical",
+                "domain": "Corporate Taxation & Compliance",
+                "question": "How do you ensure compliance with corporate income tax, indirect tax (GST/VAT), and deferred tax accounting regulations during quarterly tax filings?",
+                "resumeBadge": "Tailored from resume skill: Taxation",
+                "sampleAnswer": "I prepare tax provision calculations (ASC 740 / IAS 12), reconcile book-to-tax differences, and file accurate tax returns adhering to statutory tax deadlines."
+            }
+        ],
+        "accounting": [
+            {
+                "id": "acct_1",
+                "category": "Technical",
+                "domain": "Financial Accounting & GAAP/IFRS Standards",
+                "question": "Explain how you apply GAAP/IFRS revenue recognition standards (ASC 606 / IFRS 15) to complex customer contracts and multi-element deliverables.",
+                "resumeBadge": "Tailored from resume skill: Accounting",
+                "sampleAnswer": "I identify performance obligations in customer contracts, allocate transaction prices based on standalone selling prices, and recognize revenue as obligations are satisfied."
+            },
+            {
+                "id": "acct_2",
+                "category": "Technical",
+                "domain": "Month-End Close & Reconciliation",
+                "question": "Describe your step-by-step process for performing accruals, prepayments, balance sheet reconciliations, and journal entry adjustments during month-end close.",
+                "resumeBadge": "Tailored from resume skill: Accounting",
+                "sampleAnswer": "I review recurring schedules for prepaids and accruals, perform subledger-to-G/L reconciliations, log adjusting journal entries, and prepare verified closing binders."
+            }
+        ],
+        "financial analysis": [
+            {
+                "id": "fa_1",
+                "category": "Technical",
+                "domain": "Financial Planning & Analysis (FP&A)",
+                "question": "How do you perform Variance Analysis comparing Actual vs Budgeted financial performance, and how do you translate cost drivers into executive recommendations?",
+                "resumeBadge": "Tailored from resume skill: Financial Analysis",
+                "sampleAnswer": "I dissect revenue and cost variances into volume, price, and mix components, building bridge charts that summarize performance drivers for business unit heads."
+            }
+        ],
+        "risk management": [
+            {
+                "id": "risk_1",
+                "category": "Technical",
+                "domain": "Enterprise Risk Management & Compliance",
+                "question": "How do you establish enterprise risk management (ERM) frameworks, assess operational/financial risk exposure, and ensure strict regulatory compliance?",
+                "resumeBadge": "Tailored from resume skill: Risk Management",
+                "sampleAnswer": "I design risk matrices that score risk likelihood and financial impact, define key risk indicators (KRIs), and implement mitigation controls across business operations."
+            }
+        ],
+
+        # --- TECH & SOFTWARE POOLS ---
+        "python": [
+            {
+                "id": "py_1",
+                "category": "Technical",
+                "domain": "Python Data Processing & Vectorization",
+                "question": "How do you optimize data processing pipelines in Python using Pandas and NumPy to replace slow scalar loops with vectorized operations?",
+                "resumeBadge": "Tailored from resume skill: Python",
+                "sampleAnswer": "I replace scalar loop operations with vectorized Pandas dataframe transformations, downcast numerical data types, and use NumPy array broadcasting to optimize CPU execution."
+            },
+            {
+                "id": "py_2",
+                "category": "Technical",
+                "domain": "Python Memory & GIL Concurrency",
+                "question": "How does the Python Global Interpreter Lock (GIL) impact multi-threaded CPU-bound vs I/O-bound tasks, and when should you use multiprocessing or asyncio instead?",
+                "resumeBadge": "Tailored from resume skill: Python",
+                "sampleAnswer": "The GIL prevents true parallel execution of CPython threads on multi-core CPUs. For CPU-bound tasks, I use Python multiprocessing. For I/O-bound tasks, I use asyncio or threading."
+            }
+        ],
+        "pytorch": [
+            {
+                "id": "torch_1",
+                "category": "Technical",
+                "domain": "PyTorch Deep Learning Models",
+                "question": "Can you explain how you design custom PyTorch Dataset and DataLoader classes for efficient batching, data augmentation, and GPU memory management (.to(device))?",
+                "resumeBadge": "Tailored from resume skill: PyTorch",
+                "sampleAnswer": "I subclass torch.utils.data.Dataset, implementing __len__ and __getitem__ methods to load and preprocess samples lazily. I configure DataLoader with pinned memory and num_workers."
+            }
+        ],
+        "xgboost": [
+            {
+                "id": "xgb_1",
+                "category": "Technical",
+                "domain": "XGBoost & Gradient Boosting",
+                "question": "How do you handle class imbalance and prevent overfitting when training XGBoost models? Which parameters (e.g., scale_pos_weight, max_depth, subsample, learning_rate, reg_alpha, reg_lambda) do you tune?",
+                "resumeBadge": "Tailored from resume skill: XGBoost",
+                "sampleAnswer": "I use scale_pos_weight or SMOTE to balance loss weights. To prevent overfitting, I tune max_depth (3-7), subsample (0.8), colsample_bytree (0.8), and apply L1/L2 regularization."
+            }
+        ],
+        "sql": [
+            {
+                "id": "sql_1",
+                "category": "Technical",
+                "domain": "SQL Query Execution & Schema Design",
+                "question": "Describe how you write complex SQL queries using CTEs, window functions, and indexing to process analytics data efficiently.",
+                "resumeBadge": "Tailored from resume skill: SQL",
+                "sampleAnswer": "I structure complex aggregations using Common Table Expressions (CTEs) for readability and use window functions (ROW_NUMBER(), PARTITION BY) for ranking while analyzing execution plans."
+            }
+        ]
+    }
+
+    # STRICT WHITELIST COLLECTION: Gather ONLY questions matching whitelisted skills
+    candidate_tech_pool = []
+    
+    for skill_key, questions in SKILL_QUESTION_POOLS.items():
+        if skill_key in whitelisted_skills or any(skill_key in s for s in whitelisted_skills):
+            for q in questions:
+                if q not in candidate_tech_pool:
+                    candidate_tech_pool.append(q)
+
+    # Dynamic custom technical & functional questions for ALL candidate detected skills
+    for sk in detected_skills:
+        sk_title = sk.title()
+        sk_slug = re.sub(r"[^a-z0-9]", "_", sk.lower())
+        
+        custom_q_1 = {
+            "id": f"custom_{sk_slug}_prod",
+            "category": "Technical",
+            "domain": f"Domain Competency & {sk_title}",
+            "question": f"How do you leverage {sk_title} in professional environments to streamline workflows, enforce accuracy, and optimize operational performance?",
+            "resumeBadge": f"Tailored from resume skill: {sk_title}",
+            "sampleAnswer": f"I follow industry best practices when executing tasks with {sk_title}, establishing standardized procedures, conducting thorough quality checks, and monitoring key metrics."
+        }
+        custom_q_2 = {
+            "id": f"custom_{sk_slug}_arch",
+            "category": "Technical",
+            "domain": f"Strategy & {sk_title}",
+            "question": f"Describe your approach to troubleshooting errors, auditing data integrity, and solving complex challenges when working with {sk_title}.",
+            "resumeBadge": f"Tailored from resume skill: {sk_title}",
+            "sampleAnswer": f"I isolate root causes systematically, analyze input parameters against compliance standards, and implement permanent corrective controls."
+        }
+        custom_q_3 = {
+            "id": f"custom_{sk_slug}_report",
+            "category": "Technical",
+            "domain": f"Reporting & {sk_title}",
+            "question": f"How do you present analytical findings, reconciliations, and reporting insights derived from {sk_title} to executive decision-makers?",
+            "resumeBadge": f"Tailored from resume skill: {sk_title}",
+            "sampleAnswer": f"I translate raw outputs into executive summary dashboards, highlighting key trends, risk exposures, and actionable strategic recommendations."
+        }
+        custom_q_4 = {
+            "id": f"custom_{sk_slug}_scale",
+            "category": "Technical",
+            "domain": f"Process Scaling & {sk_title}",
+            "question": f"Walk through a scenario where you scaled or automated a manual process involving {sk_title} to increase efficiency and eliminate manual error.",
+            "resumeBadge": f"Tailored from resume skill: {sk_title}",
+            "sampleAnswer": f"I documented baseline manual steps, identified repetitive bottlenecks, built automated templates and validation rules, reducing cycle time substantially."
+        }
+
+        for cq in [custom_q_1, custom_q_2, custom_q_3, custom_q_4]:
+            if not any(q["id"] == cq["id"] for q in candidate_tech_pool):
+                candidate_tech_pool.append(cq)
+
+    # 15 Comprehensive Behavioral & HR Questions
+    hr_questions = [
+        {
+            "id": "hr_1",
+            "category": "HR & Behavioral",
+            "domain": "Conflict Resolution & Leadership",
+            "question": "Tell me about a time when you had a professional disagreement with a colleague or manager. How did you reach a productive consensus?",
+            "resumeBadge": "Behavioral & Leadership",
+            "sampleAnswer": "Situation: A colleague preferred a traditional manual approach while I advocated for an automated workflow. Action: I built a side-by-side demonstration showing accuracy gains. Result: Empirical results convinced the team to adopt the automated solution."
+        },
+        {
+            "id": "hr_2",
+            "category": "HR & Behavioral",
+            "domain": "Time Management & Deadlines",
+            "question": "Describe a situation where project deliverables changed close to a tight deadline. How did you adapt your priorities?",
+            "resumeBadge": "Agile Adaptation",
+            "sampleAnswer": "Situation: Requirements shifted 48 hours before release. Action: I reprioritized core critical deliverables, communicated transparently with stakeholders, and completed essential tasks on schedule."
+        },
+        {
+            "id": "hr_3",
+            "category": "HR & Behavioral",
+            "domain": "Incident Management & Ownership",
+            "question": "Describe a scenario where a production report or process encountered a critical error. What steps did you take to resolve and prevent it?",
+            "resumeBadge": "Incident Management",
+            "sampleAnswer": "Situation: An unexpected data discrepancy altered reporting outputs. Action: I paused distribution, traced the calculation error to source files, corrected the validation rule, and republished verified figures."
+        },
+        {
+            "id": "hr_4",
+            "category": "HR & Behavioral",
+            "domain": "Cross-Functional Communication",
+            "question": "How do you communicate complex domain insights or financial metrics to non-technical executive stakeholders?",
+            "resumeBadge": "Communication & Strategy",
+            "sampleAnswer": "I translate low-level technical trade-offs into high-level business impact metrics, leveraging concise visual dashboards and clear executive summaries."
+        },
+        {
+            "id": "hr_5",
+            "category": "HR & Behavioral",
+            "domain": "Workload Prioritization",
+            "question": "How do you handle multiple competing high-priority tasks when resources or time are constrained?",
+            "resumeBadge": "Prioritization",
+            "sampleAnswer": "I evaluate tasks by business urgency and financial impact, set transparent milestones with stakeholders, and delegate effectively."
+        },
+        {
+            "id": "hr_6",
+            "category": "HR & Behavioral",
+            "domain": "Process Improvement",
+            "question": "Give an example of a legacy process you audited and successfully streamlined to improve accuracy or speed.",
+            "resumeBadge": "Process Optimization",
+            "sampleAnswer": "I identified redundant manual data entry steps, implemented standardized templates with validation checks, cutting processing time by 40%."
+        },
+        {
+            "id": "hr_7",
+            "category": "HR & Behavioral",
+            "domain": "Ethics & Compliance",
+            "question": "Describe how you handle situations where compliance standards or internal controls might be compromised.",
+            "resumeBadge": "Ethics & Compliance",
+            "sampleAnswer": "I adhere strictly to regulatory policies, document discrepancies transparently, and escalate compliance risks to audit leads immediately."
+        },
+        {
+            "id": "hr_8",
+            "category": "HR & Behavioral",
+            "domain": "Stakeholder Negotiation",
+            "question": "Tell me about a time you had to push back against unrealistic budget or project timeline expectations.",
+            "resumeBadge": "Stakeholder Alignment",
+            "sampleAnswer": "I presented data-driven resource estimates showing trade-offs, offering phased delivery options that met core business goals within realistic constraints."
+        }
+    ]
+
+    selected_tech = []
+    selected_hr = []
+
+    if interview_type == "technical":
+        selected_tech = candidate_tech_pool[:question_count]
+    elif interview_type == "hr":
+        selected_hr = hr_questions[:question_count]
+    else:
+        tech_cnt = int(question_count / 2 + 0.5)
+        hr_cnt = int(question_count / 2)
+        selected_tech = candidate_tech_pool[:tech_cnt]
+        selected_hr = hr_questions[:hr_cnt]
+
+    canonical_skills = [s.title() for s in detected_skills[:10]]
+
+    return {
+        "type": interview_type,
+        "difficulty": difficulty,
+        "questionCount": len(selected_tech) + len(selected_hr),
+        "detectedSkills": canonical_skills,
+        "technicalQuestions": selected_tech,
+        "hrQuestions": selected_hr
+    }
+
+
+@analysis_bp.route("/interview-prep/generate", methods=["POST"])
+@jwt_required(optional=True)
+def generate_interview_prep():
+    uploaded_file = request.files.get("file")
+    job_description = (request.form.get("job_description") or "").strip()
+    interview_type = (request.form.get("interview_type") or "mixed").strip()
+    difficulty = (request.form.get("difficulty") or "Intermediate").strip()
+    try:
+        question_count = int(request.form.get("question_count") or 10)
+    except (ValueError, TypeError):
+        question_count = 10
+
+    text = ""
+    if uploaded_file and uploaded_file.filename:
+        try:
+            uploaded_file.seek(0)
+            extracted = _extract_file_text(uploaded_file).strip()
+            if extracted:
+                text = extracted
+        except Exception as e:
+            print("File extraction notice:", e)
+        
+        if not text:
+            return jsonify({"message": "Could not extract text from the uploaded PDF/file. Please upload a readable text-based PDF or DOCX file."}), 400
+
+    if not text:
+        text = (request.form.get("resume_text") or "").strip()
+
+    if not text:
+        return jsonify({"message": "Please upload a resume file or enter skills text."}), 400
+
+    res = _generate_interview_questions_backend(text, job_description, interview_type, difficulty, question_count)
+    return jsonify(res), 200
+
+
 
