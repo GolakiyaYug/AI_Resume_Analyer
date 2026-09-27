@@ -266,3 +266,13 @@ python -m py_compile app.py analysis_routes.py models.py email_service.py
 
 - **License:** Distributed under the [MIT License](LICENSE).
 - **Libraries:** Powered by open-source tools including Flask, Scikit-Learn, PyMuPDF, React, Vite, and Tailwind CSS.
+
+---
+
+---
+
+## 👨‍💻 Author
+- **Yug Golakiya**
+- **Role:** B.Tech CSE (AI-ML) Undergraduate Student & Full Stack AI/ML Developer
+- **GitHub:** [GolakiyaYug](https://github.com/GolakiyaYug)
+- **LinkedIn:** [Yug Golakiya](https://www.linkedin.com/in/yug-golakiya)
