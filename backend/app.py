@@ -51,12 +51,26 @@ def create_app():
         "JWT_SECRET_KEY", "dev-jwt-secret-change-in-production"
     )
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=7)
-    app.config["SMTP_HOST"] = os.getenv("MAIL_SERVER", os.getenv("SMTP_HOST", "smtp.gmail.com"))
-    app.config["SMTP_PORT"] = int(os.getenv("MAIL_PORT", os.getenv("SMTP_PORT", "587")))
-    app.config["SMTP_USERNAME"] = os.getenv("MAIL_USERNAME", os.getenv("SMTP_USERNAME", ""))
-    app.config["SMTP_PASSWORD"] = os.getenv("MAIL_PASSWORD", os.getenv("SMTP_PASSWORD", ""))
-    app.config["SMTP_FROM"] = os.getenv("MAIL_FROM", os.getenv("SMTP_FROM", os.getenv("MAIL_USERNAME", "")))
-    app.config["SMTP_USE_TLS"] = os.getenv("MAIL_USE_TLS", os.getenv("SMTP_USE_TLS", "starttls")).lower()
+    smtp_host_raw = os.getenv("MAIL_SERVER", os.getenv("SMTP_HOST", "smtp.gmail.com"))
+    app.config["SMTP_HOST"] = smtp_host_raw.strip() if smtp_host_raw else "smtp.gmail.com"
+    
+    smtp_port_raw = os.getenv("MAIL_PORT", os.getenv("SMTP_PORT", "587"))
+    try:
+        app.config["SMTP_PORT"] = int(str(smtp_port_raw).strip())
+    except (ValueError, TypeError):
+        app.config["SMTP_PORT"] = 587
+
+    smtp_user_raw = os.getenv("MAIL_USERNAME", os.getenv("SMTP_USERNAME", ""))
+    app.config["SMTP_USERNAME"] = smtp_user_raw.strip() if smtp_user_raw else ""
+
+    smtp_pass_raw = os.getenv("MAIL_PASSWORD", os.getenv("SMTP_PASSWORD", ""))
+    app.config["SMTP_PASSWORD"] = smtp_pass_raw.strip() if smtp_pass_raw else ""
+
+    smtp_from_raw = os.getenv("MAIL_FROM", os.getenv("SMTP_FROM", app.config["SMTP_USERNAME"]))
+    app.config["SMTP_FROM"] = smtp_from_raw.strip() if smtp_from_raw else app.config["SMTP_USERNAME"]
+
+    smtp_tls_raw = os.getenv("MAIL_USE_TLS", os.getenv("SMTP_USE_TLS", "starttls"))
+    app.config["SMTP_USE_TLS"] = smtp_tls_raw.lower().strip() if smtp_tls_raw else "starttls"
 
     # Initialize extensions
     db.init_app(app)

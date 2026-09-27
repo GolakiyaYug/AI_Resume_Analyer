@@ -47,9 +47,38 @@ COMMON_SKILLS = {
     "cash flow management", "variance analysis", "cost accounting", "treasury", "financial planning", "fp&a", "due diligence", "credit analysis",
     "wealth management", "banking", "accounts payable", "accounts receivable", "bank reconciliation", "financial statements", "balance sheet",
 
-    # Business Management, Operations & Marketing
-    "project management", "stakeholder management", "operations", "supply chain", "human resources", "hr", "marketing", "digital marketing", "sales",
-    "business strategy", "crm", "salesforce", "hubspot", "seo", "agile", "scrum", "vendor management", "kpi tracking", "communication", "leadership", "problem solving",
+    # Human Resources & People Operations
+    "human resources", "hr", "hr generalist", "recruitment", "talent acquisition", "employee relations",
+    "performance management", "onboarding", "offboarding", "hris", "workday", "bamboohr", "staffing",
+    "sourcing", "screening", "interviews", "labor laws", "people operations", "compensation", "benefits",
+    "employee engagement", "talent management", "hr policies", "payroll administration", "performance reviews",
+    "training and development", "diversity and inclusion", "succession planning",
+
+    # Business Management, Operations, Project Management & Marketing
+    "project management", "program management", "stakeholder management", "operations", "operations management",
+    "supply chain", "human resources", "hr", "marketing", "digital marketing", "sales",
+    "business strategy", "crm", "salesforce", "hubspot", "seo", "agile", "scrum", "vendor management",
+    "kpi tracking", "communication", "leadership", "problem solving", "product management", "business analysis",
+    "process improvement", "change management", "requirements gathering",
+
+    # Digital Marketing, SEO, Content & Brand Strategy
+    "digital marketing", "seo", "sem", "ppc", "google analytics", "social media marketing", "content marketing",
+    "email marketing", "google ads", "facebook ads", "copywriting", "content writing", "lead generation",
+    "conversion rate optimization", "cro", "hubspot", "campaign management", "marketing strategy", "brand management",
+    "content strategy", "blogs", "seo writing", "editing", "proofreading", "creative writing", "articles",
+    "content management", "social media content", "brand storytelling", "affiliate marketing", "influencer marketing",
+
+    # Sales, Business Development & Customer Success
+    "sales", "business development", "cold calling", "b2b sales", "b2c sales", "account management", "crm",
+    "salesforce", "negotiation", "client relationship", "pipeline management", "sales strategy", "closing deals",
+    "prospecting", "key account management", "customer success", "customer support", "client onboarding",
+    "zendesk", "freshdesk", "customer retention", "churn reduction", "technical support", "ticket resolution",
+    "customer satisfaction", "csat", "inside sales", "outbound sales", "inbound sales",
+
+    # UI/UX, Graphic Design & Creative Media
+    "figma", "ui/ux", "ux", "ui", "photoshop", "illustrator", "wireframing", "user research", "design systems",
+    "prototyping", "adobe xd", "graphic design", "visual design", "user experience", "user interface",
+    "indesign", "canva", "motion graphics", "video editing", "premiere pro", "after effects",
 }
 
 # Strict Blacklist of Human Names & Resume Structural Stopwords
@@ -73,6 +102,58 @@ STOPWORDS_AND_NAMES = {
 }
 
 ROLE_SKILLS = {
+    "Digital Marketing Specialist": {
+        "digital marketing", "seo", "sem", "ppc", "google analytics", "social media marketing",
+        "content marketing", "email marketing", "google ads", "facebook ads", "copywriting",
+        "lead generation", "conversion rate optimization", "hubspot", "campaign management",
+        "marketing strategy", "brand management", "content strategy"
+    },
+    "Sales & Business Development Executive": {
+        "sales", "business development", "lead generation", "cold calling", "b2b sales",
+        "account management", "crm", "salesforce", "hubspot", "negotiation", "client relationship",
+        "pipeline management", "sales strategy", "prospecting", "closing deals"
+    },
+    "Content Writer & Copywriter": {
+        "content writing", "copywriting", "content strategy", "blogs", "seo writing",
+        "editing", "proofreading", "creative writing", "articles", "content management",
+        "social media content", "brand storytelling"
+    },
+    "UI/UX & Graphic Designer": {
+        "figma", "ui/ux", "ux", "ui", "photoshop", "illustrator", "wireframing",
+        "user research", "design systems", "prototyping", "adobe xd", "graphic design",
+        "visual design", "user experience", "user interface"
+    },
+    "Customer Success & Support Specialist": {
+        "customer success", "customer support", "client onboarding", "account management",
+        "zendesk", "freshdesk", "customer retention", "churn reduction", "ticket resolution",
+        "customer satisfaction", "csat"
+    },
+    "HR Generalist / Manager": {
+        "human resources", "hr", "recruitment", "talent acquisition", "employee relations",
+        "performance management", "onboarding", "hris", "payroll", "employee engagement",
+        "talent management", "workday", "bamboohr", "staffing", "labor laws", "people operations",
+        "compensation", "benefits", "hr policies"
+    },
+    "Talent Acquisition Specialist": {
+        "recruitment", "talent acquisition", "sourcing", "screening", "interviews",
+        "staffing", "human resources", "hr", "onboarding", "talent management"
+    },
+    "Project Manager": {
+        "project management", "program management", "agile", "scrum", "stakeholder management",
+        "risk management", "budgeting", "jira", "pmp", "timeline management", "change management"
+    },
+    "Operations Manager": {
+        "operations", "operations management", "supply chain", "process improvement",
+        "vendor management", "kpi tracking", "budgeting", "business strategy", "leadership"
+    },
+    "Business Analyst": {
+        "business analysis", "data analysis", "sql", "excel", "process improvement",
+        "requirements gathering", "stakeholder management", "jira", "tableau", "power bi"
+    },
+    "Product Manager": {
+        "product management", "agile", "scrum", "product roadmap", "user research",
+        "wireframing", "kpi tracking", "stakeholder management", "business strategy"
+    },
     "AI/ML Engineer": {
         "python", "pytorch", "tensorflow", "machine learning", "deep learning",
         "nlp", "scikit-learn", "pandas", "numpy", "transformers", "huggingface", "llm"
@@ -254,12 +335,20 @@ def _analyze_resume(text, job_description=""):
             [normalized, *role_profiles]
         )
         similarities = cosine_similarity(vectors[0:1], vectors[1:]).ravel()
+        
+        raw_predictions = []
+        for index, score in enumerate(similarities):
+            role_name = role_names[index]
+            required_skills = ROLE_SKILLS[role_name]
+            matched_skills = set(found_skills) & required_skills
+            skill_overlap_ratio = len(matched_skills) / len(required_skills) if required_skills else 0
+            combined_score = (float(score) * 0.7) + (skill_overlap_ratio * 0.3)
+            match_pct = round(combined_score * 100)
+            if match_pct > 0:
+                raw_predictions.append({"role": role_name, "match_score": match_pct})
+
         role_predictions = sorted(
-            (
-                {"role": role_names[index], "match_score": round(float(score) * 100)}
-                for index, score in enumerate(similarities)
-                if score > 0
-            ),
+            raw_predictions,
             key=lambda prediction: prediction["match_score"],
             reverse=True,
         )[:3]
@@ -344,7 +433,11 @@ def _analyze_resume(text, job_description=""):
         {
             "role": prediction["role"],
             "match_score": prediction["match_score"],
-            "reason": f"Matches {', '.join(sorted(ROLE_SKILLS[prediction['role']] & set(found_skills)))} from the resume.",
+            "reason": (
+                f"Matches {', '.join(sorted(ROLE_SKILLS[prediction['role']] & set(found_skills)))} from the resume."
+                if (ROLE_SKILLS[prediction['role']] & set(found_skills))
+                else f"High content similarity with {prediction['role']} domain requirements."
+            ),
         }
         for prediction in role_predictions
     ]
@@ -523,6 +616,18 @@ def _calculate_salary_market(text, job_role, location, experience_years):
         base_min, base_avg, base_max = 88000, 125000, 165000
     elif any(k in lower_role for k in ["data analyst"]):
         base_min, base_avg, base_max = 75000, 105000, 140000
+    elif any(k in lower_role for k in ["digital marketing", "marketing"]):
+        base_min, base_avg, base_max = 65000, 92000, 130000
+    elif any(k in lower_role for k in ["sales", "business development"]):
+        base_min, base_avg, base_max = 70000, 98000, 140000
+    elif any(k in lower_role for k in ["content writer", "copywriter", "writer"]):
+        base_min, base_avg, base_max = 55000, 80000, 115000
+    elif any(k in lower_role for k in ["ui/ux", "designer", "ux", "ui"]):
+        base_min, base_avg, base_max = 80000, 115000, 155000
+    elif any(k in lower_role for k in ["customer success", "customer support"]):
+        base_min, base_avg, base_max = 60000, 85000, 120000
+    elif any(k in lower_role for k in ["hr", "human resources", "talent acquisition", "recruiter"]):
+        base_min, base_avg, base_max = 70000, 98000, 135000
     elif any(k in lower_role for k in ["lead", "principal", "manager", "architect"]):
         base_min, base_avg, base_max = 135000, 185000, 245000
 
@@ -562,7 +667,11 @@ def _calculate_salary_market(text, job_role, location, experience_years):
         loc_mult = 1.10
 
     # Skill Premium Multiplier (+4% per high-demand skill up to 25%)
-    high_value_skills = {"pytorch", "tensorflow", "aws", "kubernetes", "docker", "react", "next.js", "python", "system architecture", "terraform", "microservices"}
+    high_value_skills = {
+        "pytorch", "tensorflow", "aws", "kubernetes", "docker", "react", "next.js", "python",
+        "system architecture", "terraform", "microservices", "digital marketing", "seo", "sem",
+        "google analytics", "salesforce", "hubspot", "figma", "ui/ux", "zendesk", "workday", "hris"
+    }
     skill_matches = [s for s in found_skills if s in high_value_skills]
     skill_bonus_pct = min(0.25, len(skill_matches) * 0.04)
     skill_mult = 1.0 + skill_bonus_pct

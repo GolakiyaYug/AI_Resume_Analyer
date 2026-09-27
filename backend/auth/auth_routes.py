@@ -77,7 +77,6 @@ def signup_init():
         email_verified=False
     )
     db.session.add(new_user)
-    db.session.commit()
 
     try:
         error = _send_verification_code(new_user)
@@ -216,9 +215,9 @@ def forgot_password():
         try:
             send_code_email(user.email, code, "reset")
             db.session.commit()
-        except (OSError, RuntimeError, smtplib.SMTPException) as exc:
+        except Exception as exc:
             db.session.rollback()
-            return jsonify({"message": str(exc)}), 503
+            return jsonify({"message": f"Failed to send email: {str(exc)}"}), 503
     return jsonify({"message": "If an account exists for that email, a reset code will be sent."}), 200
 
 

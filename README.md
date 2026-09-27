@@ -1,203 +1,268 @@
-# ResumeCraft: AI Resume Analyzer and Builder
+# AI-Powered Resume Analyzer & Career Path Platform
 
-ResumeCraft is my final-year B.Tech Computer Science Engineering project for
-creating, saving, and checking resumes. The project combines a React frontend
-with a Flask backend. A user can build a resume from reusable templates or
-upload an existing PDF, DOCX, or TXT resume and receive an ATS-style score,
-plain-language feedback, and suitable job-role predictions.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-brightgreen.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0%2B-black.svg)](https://flask.palletsprojects.com/)
+[![Scikit-Learn](https://img.shields.io/badge/Scikit--Learn-1.3%2B-orange.svg)](https://scikit-learn.org/)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-5.0-purple.svg)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38bdf8.svg)](https://tailwindcss.com/)
 
-The analyzer is intentionally practical instead of pretending to be a
-large language model. It uses document parsing, a small set of ATS checks, and
-scikit-learn TF-IDF cosine similarity against role skill profiles. This makes
-the project explainable, affordable to run locally, and suitable for a student
-project demonstration.
+An end-to-end, full-stack web application designed for intelligent document parsing, rule-based Applicant Tracking System (ATS) evaluation, TF-IDF machine learning job role prediction, job description keyword matching, interactive resume building, and career growth utilities.
 
-## Main features
+The platform processes candidate resumes in multiple formats (PDF, DOCX, TXT) and delivers explainable, high-speed career diagnostics and salary benchmarks locally without requiring paid external proprietary LLM APIs.
 
-- Upload-only resume analysis for PDF, DOCX, and TXT files (10 MB limit).
-- ATS score based on contact details, sections, skills, achievements, action
-  verbs, and readable length.
-- Six-point resume overview with detected sections and skills.
-- Four to five improvement suggestions based on failed ATS checks.
-- Up to five predicted job roles with a skill-match score and explanation.
-- PDF text extraction with a `pypdf` fallback for files that need it.
-- JWT login and signup with bcrypt password hashing.
-- Forgot-password reset codes delivered by SMTP with expiry and attempt limits.
-- Save, open, update, and delete resume drafts.
-- Resume builder with live preview, reorderable sections, templates, and PDF
-  export.
-- One-origin production-style mode where Flask serves both the API and the
-  built React application.
+---
 
-## Technology used
+## 🚀 Core Features
 
-**Frontend**
+### 1. 📄 ATS Resume Scoring & Keyword Matching
+- **Multi-Format Parsing Engine:** Supports PDF, DOCX, and TXT files (up to 10 MB limit) with multi-tier extraction using PyMuPDF (`fitz`), `pdfplumber`, `pypdf`, and `python-docx`.
+- **Explainable ATS Evaluator:** Scores resumes out of 100 across 6 criteria:
+  - **Contact Details (15 pts):** Regex verification of valid email and phone number headers.
+  - **Section Headings (15 pts):** Detection of standard sections (`Summary`, `Experience`, `Education`, `Skills`, `Projects`, `Certifications`).
+  - **Relevant Skills Count (20 pts):** Extraction of technical, engineering, finance, HR, marketing, and business domain skills.
+  - **Quantified Achievements (15 pts):** Detection of metrics, percentages, dollar values, and numerical scale indicators.
+  - **Action-Oriented Writing (15 pts):** Frequency check of strong action verbs (`built`, `managed`, `optimized`, `automated`, `led`).
+  - **Readable Length (20 pts):** Evaluation of word count bounds (250–900 words).
+- **Job Description Gap Analysis:** Compares candidate resume text against target job descriptions (JDs) to highlight missing keywords and calculate keyword match percentages.
+- **Privacy & Header Filter:** Automatically filters candidate names from header lines to prevent false-positive skill detections.
 
-- React 18
-- Vite
-- React Router
-- Tailwind CSS
-- Axios
-- `html2pdf.js`
+### 2. 🤖 TF-IDF Machine Learning Job Role Prediction
+- **Vectorization Engine:** Vectorizes candidate resume text using `scikit-learn` `TfidfVectorizer` (unigrams and bigrams) and Cosine Similarity against 15+ predefined industry role profiles.
+- **Cross-Domain Role Coverage:** Accurately classifies technical and non-technical categories:
+  - **Software Engineering & Tech:** `Software Engineer`, `Frontend Developer`, `Backend Developer`, `Full Stack Developer`, `DevOps / Cloud Engineer`, `AI/ML Engineer`, `Data Scientist`, `Data Analyst`.
+  - **Core Engineering:** `Mechanical Engineer`.
+  - **Finance & Accounting:** `Financial Analyst`.
+  - **Human Resources:** `HR Generalist / Manager`, `Talent Acquisition Specialist`.
+  - **Business & Management:** `Project Manager`, `Operations Manager`, `Business Analyst`, `Product Manager`.
+  - **Marketing & Creative:** `Digital Marketing Specialist`, `Sales & Business Development Executive`, `Content Writer & Copywriter`, `UI/UX & Graphic Designer`, `Customer Success & Support Specialist`.
+- **Hybrid Scoring Algorithm:** Blends TF-IDF Cosine Similarity ($70\%$) with explicit skill overlap ratios ($30\%$) to eliminate cross-domain misclassifications.
 
-**Backend**
+### 3. 🛠️ Interactive Resume Builder & Multi-Template Export
+- **Reactive Live Workspace:** Multi-tab interface for editing personal info, summary, work history, education, projects, and skills with instant visual feedback.
+- **Modular Design Templates:** Tailwind CSS templates (`Modern`, `Classic`, `Minimal`, `Executive`, `Tech`).
+- **Client-Side PDF Generation:** High-resolution DOM rendering and PDF export via `html2pdf.js`.
+- **Draft Persistence:** Full CRUD operations for creating, editing, loading, and deleting resume drafts.
 
-- Python 3.10+
-- Flask and Flask-SQLAlchemy
-- SQLite by default
-- Flask-JWT-Extended and Flask-Bcrypt
-- `pdfplumber`, `pypdf`, and `python-docx`
-- scikit-learn TF-IDF and cosine similarity
+### 4. 📈 Career Utilities Hub
+- **Market Salary Negotiator:** Dynamic compensation calculator factoring role baselines, experience brackets (Fresher to 8+ years), location/currency indices (USD, INR, GBP, EUR), and skill premiums. Generates customized verbal and email negotiation scripts.
+- **LinkedIn Profile Optimizer:** Generates tone-specific "About" summaries (Executive, Enthusiastic, Technical), punchy headlines, and skill-based hashtags.
 
-## Project layout
+### 5. 🔒 Security & User Authentication
+- **Account Protection:** Standard JWT token authentication with salted 12-round Bcrypt password hashing.
+- **OTP Password Recovery:** 6-digit OTP delivery via Python `smtplib` (TLS/STARTTLS) with SHA-256 hashed DB persistence, 15-minute expiration windows, and failed attempt rate limiting.
+
+---
+
+## 💻 Tech Stack Used
+
+| Layer | Technologies & Libraries |
+| :--- | :--- |
+| **Frontend Framework** | React 18, Vite 5, React Router DOM v6 |
+| **Styling & Components** | Tailwind CSS 3.4, Lucide React, Heroicons |
+| **HTTP Client & Export** | Axios with JWT Interceptors, `html2pdf.js` |
+| **Backend Web Framework** | Python 3.10+, Flask 3.0+, Flask-CORS |
+| **Database & ORM** | SQLite, Flask-SQLAlchemy 3.1+ |
+| **Machine Learning & NLP** | Scikit-Learn (`TfidfVectorizer`, `cosine_similarity`), NumPy, Pandas |
+| **Document Parsers** | PyMuPDF (`fitz`), `pdfplumber`, `pypdf`, `python-docx` |
+| **Authentication & Security** | Flask-JWT-Extended, Flask-Bcrypt, SHA-256 OTP Hashes |
+
+---
+
+## 📁 Project Directory Structure
 
 ```text
-AI_Resume_Analyer/
+AI_Resume_Analyzer-main/
 ├── backend/
-│   ├── analysis_routes.py       # Upload parsing, ATS checks, role prediction
-│   ├── app.py                  # Flask app and single-origin serving
-│   ├── auth/                   # Signup, login, and current-user routes
-│   ├── create_resume/          # Resume CRUD routes
-│   ├── extensions.py           # Database, JWT, and bcrypt instances
-│   ├── models.py               # User, Resume, and Analysis models
-│   └── requirements.txt
+│   ├── auth/
+│   │   ├── __init__.py
+│   │   └── auth_routes.py         # Registration, login, profile, & OTP reset endpoints
+│   ├── create_resume/
+│   │   ├── __init__.py
+│   │   └── resume_routes.py       # Resume draft CRUD endpoints
+│   ├── .env                       # Environment variables & secret keys (Git-ignored)
+│   ├── .env.example               # Environment variables template
+│   ├── analysis_routes.py         # Document parsing, ATS heuristics, TF-IDF predictor, Salary & LinkedIn logic
+│   ├── app.py                    # Core Flask app entrypoint & single-origin static server
+│   ├── email_service.py           # Native SMTP dispatcher for OTP email delivery
+│   ├── extensions.py              # Centralized SQLAlchemy, JWTManager, & Bcrypt instances
+│   ├── models.py                  # User, Resume, and Analysis ORM database models
+│   ├── requirements.txt          # Python backend dependencies
+│   └── resume_app.db              # SQLite database storage (Git-ignored)
 ├── frontend/
-│   ├── src/features/analysis/  # Upload and analysis result screen
-│   ├── src/features/create-resume/
-│   │   └── components/templates/ # Resume templates
-│   ├── src/features/login/
-│   ├── src/features/signup/
-│   ├── src/features/resume/
-│   ├── src/shared/
-│   └── package.json
-├── .gitignore
-├── LICENSE
-└── README.md
+│   ├── src/
+│   │   ├── context/
+│   │   │   └── AuthContext.jsx    # Global user authentication state provider
+│   │   ├── features/
+│   │   │   ├── analysis/          # Resume upload, ATS score progress ring, & feedback view
+│   │   │   ├── auth/              # Password recovery & OTP reset modal screens
+│   │   │   ├── career/            # Career hub main dashboard
+│   │   │   ├── career-tools/      # Market Salary Negotiator & LinkedIn Optimizer UI
+│   │   │   ├── create-resume/     # Interactive builder, design templates, & section reorder
+│   │   │   ├── editor/            # Live resume visual editor
+│   │   │   ├── login/             # User sign-in interface
+│   │   │   ├── profile/           # User profile & settings view
+│   │   │   ├── resume/            # Dashboard for saved user resume drafts
+│   │   │   └── signup/            # User registration screen
+│   │   ├── shared/                # Navigation bar, ProtectedRoute wrappers, & UI layout components
+│   │   ├── App.jsx                # Core application routes & provider setup
+│   │   ├── index.css              # Global styles & Tailwind CSS declarations
+│   │   └── main.jsx               # React DOM entrypoint
+│   ├── .env.example               # Frontend environment template
+│   ├── .eslintrc.cjs              # ESLint code quality settings
+│   ├── index.html                 # HTML5 template entrypoint
+│   ├── package.json               # Node.js dependencies & npm scripts
+│   ├── postcss.config.js          # PostCSS setup for Tailwind CSS
+│   ├── tailwind.config.js         # Tailwind theme customization
+│   └── vite.config.js             # Vite development server & proxy API setup
+├── summary/
+│   └── PROJECT_SUMMARY.md         # Detailed technical project documentation
+├── .gitignore                     # Git tracking exclusions
+├── LICENSE                        # MIT License declaration
+└── README.md                      # Project documentation (This file)
 ```
 
-## Requirements
+---
 
-- Python 3.10 or newer
-- Node.js 18 or newer
-- npm
-- Git
+## ⚙️ Environment Variables Configuration
 
-## Local setup
+Copy `.env.example` to `.env` inside the `backend/` directory:
 
-### 1. Install backend dependencies
+```env
+# Flask Application Configuration
+SECRET_KEY=your_flask_secret_key_here
+JWT_SECRET_KEY=your_jwt_secret_key_here
+SQLALCHEMY_DATABASE_URI=sqlite:///resume_app.db
+SQLALCHEMY_TRACK_MODIFICATIONS=False
 
-From the repository root:
+# CORS Setup
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5000
 
-```powershell
-cd backend
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+# SMTP Configuration (Optional for Password Reset OTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your_email@gmail.com
+SMTP_PASSWORD=your_app_password
+SMTP_FROM=your_email@gmail.com
+SMTP_USE_TLS=True
 ```
 
-Copy `backend/.env.example` to `backend/.env` if you want to change the
-database URL, JWT secret, port, CORS origins, or SMTP settings.
+---
 
-Forgot-password email delivery requires configuring `SMTP_HOST`,
-`SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`, and
-`SMTP_USE_TLS` before testing forgot-password. For Gmail, use an App Password rather
-than your normal account password. SMTP credentials are read only from
-`backend/.env` and are never stored in the database.
+## 🛠️ Step-by-Step Installation & Setup
 
-### 2. Install frontend dependencies
+### Prerequisites
+- **Python:** 3.10 or higher
+- **Node.js:** 18.0 or higher
+- **npm:** Package manager
+- **Git:** Version control system
 
-Open a second terminal:
+---
+
+### Step 1: Backend Setup (Flask)
+
+1. Open a terminal and navigate to the `backend` directory:
+   ```powershell
+   cd backend
+   ```
+
+2. Create and activate a virtual environment:
+   ```powershell
+   # Windows (PowerShell)
+   python -m venv venv
+   .\venv\Scripts\Activate.ps1
+
+   # Linux / macOS
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+3. Install required Python packages:
+   ```powershell
+   pip install -r requirements.txt
+   ```
+
+4. Create the local configuration file:
+   ```powershell
+   copy .env.example .env
+   ```
+
+---
+
+### Step 2: Frontend Setup (React / Vite)
+
+1. Open a second terminal window and navigate to the `frontend` directory:
+   ```powershell
+   cd frontend
+   ```
+
+2. Install Node modules:
+   ```powershell
+   npm install
+   ```
+
+---
+
+## 🏃 How to Run the Application Locally
+
+### Option A: Single-Origin Mode (Recommended for Production / Demo)
+Flask serves both the compiled React SPA frontend static assets and backend API endpoints from a single host:
+
+1. Build the frontend production assets:
+   ```powershell
+   cd frontend
+   npm run build
+   ```
+
+2. Start the Flask application server:
+   ```powershell
+   cd ..\backend
+   python app.py
+   ```
+
+3. Open your browser and visit:  
+   **`http://127.0.0.1:5000`**
+
+---
+
+### Option B: Dual Development Mode (Hot Reloading)
+
+1. **Terminal 1 (Backend API):**
+   ```powershell
+   cd backend
+   python app.py
+   ```
+
+2. **Terminal 2 (Frontend Dev Server):**
+   ```powershell
+   cd frontend
+   npm run dev
+   ```
+
+3. Open your browser and visit:  
+   **`http://localhost:5173`** (Vite automatically proxies `/api/*` calls to Flask on port 5000).
+
+---
+
+## 🧪 Code Quality & Build Verification
+
+Run these validation commands to verify frontend build integrity and backend Python syntax:
 
 ```powershell
+# Frontend linting and production build test
 cd frontend
-npm install
-```
-
-### 3. Run the project with one localhost URL
-
-Build the React app first:
-
-```powershell
-cd frontend
-npm run build
-```
-
-Then start Flask:
-
-```powershell
-cd backend
-python app.py
-```
-
-Open **http://127.0.0.1:5000** in Chrome. Flask serves the compiled frontend,
-SPA routes, static assets, and `/api/*` routes from the same origin.
-
-For frontend-only development with Vite hot reload, run `npm run dev` from
-`frontend/`. Vite proxies `/api` requests to Flask on port 5000.
-
-## Using the analyzer
-
-1. Create an account or sign in.
-2. Open **Analyze** from the navbar.
-3. Choose one PDF, DOCX, or TXT resume file.
-4. Click **Analyze Resume**.
-5. Review the ATS score, overview points, checks, improvement suggestions,
-   detected skills, and predicted roles.
-
-The analyzer accepts selectable text from a PDF. An image-only/scanned PDF can
-still be uploaded, but its score will be limited until OCR text is available.
-
-## API summary
-
-| Method | Endpoint | Login | Purpose |
-| --- | --- | --- | --- |
-| GET | `/api/health` | No | Check that the backend is running |
-| POST | `/api/auth/signup` | No | Create an active account and return a JWT |
-| POST | `/api/auth/login` | No | Get a JWT token |
-| POST | `/api/auth/forgot-password` | No | Send a password reset code |
-| POST | `/api/auth/reset-password` | No | Set a new password with a valid code |
-| GET | `/api/auth/me` | Yes | Get the current user |
-| POST | `/api/resume/` | Yes | Save a resume |
-| GET | `/api/resume/` | Yes | List saved resumes |
-| GET | `/api/resume/<id>` | Yes | Read one saved resume |
-| PUT | `/api/resume/<id>` | Yes | Update a saved resume |
-| DELETE | `/api/resume/<id>` | Yes | Delete a saved resume |
-| POST | `/api/analysis/analyze` | Yes | Upload and analyze a resume |
-
-The analysis endpoint expects `multipart/form-data` with a `file` field. It
-returns the original `overall_score`, `ats_score`, `overview`, `suggestions`,
-`checks`, and `predicted_roles` fields plus structured `overview_points`,
-`improvement_suggestions`, `job_recommendations`, and `job_preferences`.
-
-## Validation commands
-
-```powershell
-cd frontend
-npm run build
 npm run lint
+npm run build
 
+# Backend syntax compilation check
 cd ..\backend
-python -m py_compile app.py analysis_routes.py models.py
+python -m py_compile app.py analysis_routes.py models.py email_service.py
 ```
 
-## Limitations
+---
 
-- ATS scoring is an estimate, not a guarantee of a recruiter response.
-- Role predictions are limited to the role profiles defined in
-  `backend/analysis_routes.py`.
-- Scanned PDFs need OCR before their text can be evaluated accurately.
-- SQLite is suitable for local demonstration; a hosted deployment should use
-  PostgreSQL and a production WSGI server.
+## 📄 License & Acknowledgments
 
-## Project status
-
-The project is complete enough for a local demonstration and final-year
-project presentation. Future work could add OCR, more role profiles, a job
-description comparison screen, and deployment configuration.
-
-## Author
-
-**Krutarth Talaviya**
-B.Tech Computer Science Engineering
-
-This project is released under the MIT License.
+- **License:** Distributed under the [MIT License](LICENSE).
+- **Libraries:** Powered by open-source tools including Flask, Scikit-Learn, PyMuPDF, React, Vite, and Tailwind CSS.
